@@ -97,82 +97,96 @@ export class SkillDispatcher {
     const additionalSkills = skills.filter((s) => s.mode === "additional")
 
     let instruction = `
-## Skill Chain for Phase ${phase} (${phaseConfig?.name ?? `Phase ${phase}`})
+## ⚠️ MANDATORY Skill Chain for Phase ${phase} (${phaseConfig?.name ?? `Phase ${phase}`})
 
 **Primary Skill**: ${primarySkill?.name ?? "None"}
-${additionalSkills.length > 0 ? `**Additional Skills**: ${additionalSkills.map((s) => s.name).join(", ")}` : ""}
+${additionalSkills.length > 0 ? `**Additional Skills**: ${additionalSkills.map((s) => s.name).join(", ")}` : "**Additional Skills**: None"}
 
 ### Invoke Timing: ${primarySkill?.invoke_timing ?? "pre_phase"}
+
+You MUST invoke these skills according to the timing below. This is NOT optional.
 
 `
 
     if (primarySkill?.invoke_timing === "pre_phase") {
       instruction += `
-**Execution Order**:
-1. Invoke primary skill BEFORE starting phase tasks
-2. Invoke additional skills AFTER primary skill completes
+### 🚨 REQUIRED ACTION NOW
 
-**How to invoke**:
+You MUST execute the following skill invocations IMMEDIATELY before starting Phase ${phase} tasks:
+
+**Step 1 - Invoke Primary Skill (REQUIRED)**:
 \`\`\`
 skill("${primarySkill?.name}")
 \`\`\`
+
 `
       if (additionalSkills.length > 0) {
-        instruction += `
-Then for additional skills:
+        instruction += `**Step 2 - Invoke Additional Skills (REQUIRED)**:
+After primary skill completes, you MUST invoke:
 \`\`\`
-skill("${additionalSkills[0]?.name}")
+${additionalSkills.map((s) => `skill("${s.name}")`).join("\n")}
 \`\`\`
+
 `
       }
+      instruction += `**Do NOT proceed with Phase ${phase} tasks until ALL skills above are invoked.**`
     } else if (primarySkill?.invoke_timing === "pre_gate") {
       instruction += `
-**Execution Order**:
-1. Complete phase tasks FIRST
-2. Invoke skill chain BEFORE gate check
-3. Then call sdd_gate action=check
+### 🚨 REQUIRED ACTION BEFORE GATE
 
-**How to invoke**:
-After completing phase tasks:
+After completing Phase ${phase} tasks, you MUST invoke skill chain BEFORE calling sdd_gate:
+
+**Required Skill Invocations**:
 \`\`\`
-skill("${primarySkill?.name}")
-`
-      if (additionalSkills.length > 0) {
-        instruction += `skill("${additionalSkills[0]?.name}")\n`
-      }
-      instruction += `sdd_gate phase=${phase + 1} action=check
+${skills.map((s) => `skill("${s.name}")`).join("\n")}
+sdd_gate phase=${phase + 1} action=check
 \`\`\`
-`
+
+**Do NOT call sdd_gate until ALL skills above are invoked.**`
     } else if (primarySkill?.invoke_timing === "during_phase") {
       instruction += `
-**Execution Order**:
-1. Start phase tasks
-2. Invoke skills when needed during execution
-3. Complete phase tasks
-4. Call sdd_gate action=check
+### 🚨 REQUIRED ACTION DURING PHASE
 
-**How to invoke**:
-During phase execution:
+During Phase ${phase} execution, you MUST invoke skills when appropriate:
+
+**When you encounter a situation matching skill purpose, invoke IMMEDIATELY**:
 \`\`\`
 skill("${primarySkill?.name}")
 \`\`\`
+
 `
+      if (additionalSkills.length > 0) {
+        instruction += `${additionalSkills.map((s) => `skill("${s.name}")`).join("\n")}
+`
+      }
     }
 
     instruction += `
-### Skill Purpose
 
-| Skill | Purpose |
-|-------|---------|
-${skills.map((s) => `| ${s.name} | ${this.getSkillPurpose(s.name)} |`).join("\n")}
+### Skill Purpose Reference
 
-### After Skill Chain Complete
-- Continue phase tasks
-- Call sdd_gate phase=${phase + 1} action=check
-- Wait for user approval
+| Skill | When to Invoke | Purpose |
+|-------|----------------|---------|
+${skills.map((s) => `| ${s.name} | ${this.getInvokeWhen(s.invoke_timing)} | ${this.getSkillPurpose(s.name)} |`).join("\n")}
+
+### ⚠️ REMINDER
+- Skills are loaded via configuration (.sdd/workflow_config.json)
+- Plugin does NOT hardcode skill names
+- You MUST invoke skills as instructed above
+- After skill chain: continue tasks → sdd_gate → wait for approval
 `
 
     return instruction
+  }
+
+  private getInvokeWhen(timing: string): string {
+    const timingMap: Record<string, string> = {
+      "pre_phase": "Before phase starts",
+      "during_phase": "During execution (as needed)",
+      "pre_gate": "Before gate check",
+      "post_gate": "After gate approval",
+    }
+    return timingMap[timing] ?? "As configured"
   }
 
   private getSkillPurpose(skillName: string): string {
