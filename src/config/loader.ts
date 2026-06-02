@@ -161,12 +161,48 @@ export class ConfigLoader {
     if (existsSync(configFile)) {
       try {
         const data = JSON.parse(readFileSync(configFile, "utf-8"))
-        return { ...DEFAULT_CONFIG, ...data }
+        return this.mergeConfig(DEFAULT_CONFIG, data)
       } catch {
         return DEFAULT_CONFIG
       }
     }
     return DEFAULT_CONFIG
+  }
+
+  private mergeConfig(defaultConfig: WorkflowConfig, userConfig: Partial<WorkflowConfig>): WorkflowConfig {
+    const merged = { ...defaultConfig }
+
+    if (userConfig.version) {
+      merged.version = userConfig.version
+    }
+
+    if (userConfig.thresholds) {
+      merged.thresholds = { ...defaultConfig.thresholds, ...userConfig.thresholds }
+    }
+
+    if (userConfig.phases && Array.isArray(userConfig.phases)) {
+      for (const userPhase of userConfig.phases) {
+        const defaultPhase = defaultConfig.phases.find(p => p.id === userPhase.id)
+        if (defaultPhase) {
+          const mergedPhase: PhaseConfig = {
+            ...defaultPhase,
+            ...userPhase,
+            skill: defaultPhase.skill,
+            additional_skills: userPhase.additional_skills ?? defaultPhase.additional_skills,
+          }
+          const index = merged.phases.findIndex(p => p.id === userPhase.id)
+          if (index >= 0) {
+            merged.phases[index] = mergedPhase
+          }
+        }
+      }
+    }
+
+    if (userConfig.transitions) {
+      merged.transitions = { ...defaultConfig.transitions, ...userConfig.transitions }
+    }
+
+    return merged
   }
 
   getConfig(): WorkflowConfig {
