@@ -79,16 +79,12 @@ const SddWorkflowPlugin = async ({ project, client, $, directory, worktree }, op
         },
         "experimental.chat.system.transform": async (_input, output) => {
             const phase = state.currentPhase;
-            if (phase === Phase.INIT)
-                return;
             const phasePrompt = contextInjector.getPhasePrompt(phase, state);
             const memoryContext = contextInjector.injectMemoryContext(phase, state, directory);
             output.system.push(`## SDD-Workflow (Phase ${phase}: ${state.getPhaseName()})\n\n${phasePrompt}\n\n${memoryContext}`);
         },
         "experimental.session.compacting": async (_input, output) => {
             const phase = state.currentPhase;
-            if (phase === Phase.INIT)
-                return;
             const compressionResult = phaseCompressionMiddleware.check(phase, state, directory);
             if (!compressionResult.allowed && compressionResult.message) {
                 output.context.push(compressionResult.message);

@@ -109,9 +109,8 @@ const SddWorkflowPlugin: Plugin = async (
       }
     },
 
-    "experimental.chat.system.transform": async (_input, output) => {
+"experimental.chat.system.transform": async (_input, output) => {
       const phase = state.currentPhase
-      if (phase === Phase.INIT) return
 
       const phasePrompt = contextInjector.getPhasePrompt(phase, state)
       const memoryContext = contextInjector.injectMemoryContext(
@@ -127,7 +126,6 @@ const SddWorkflowPlugin: Plugin = async (
 
     "experimental.session.compacting": async (_input, output) => {
       const phase = state.currentPhase
-      if (phase === Phase.INIT) return
 
       const compressionResult = phaseCompressionMiddleware.check(
         phase,
@@ -145,8 +143,8 @@ const SddWorkflowPlugin: Plugin = async (
         const cmd = command.slice(4).trim()
         const result = await director.executeCommand(cmd, {})
         const text = result.success
-          ? `âœ?${result.message}${result.details ? "\n" + result.details.map((d: string) => `  ${d}`).join("\n") : ""}`
-          : `â?${result.message}${result.details ? "\n" + result.details.map((d: string) => `  ${d}`).join("\n") : ""}`
+          ? `ï¿½?${result.message}${result.details ? "\n" + result.details.map((d: string) => `  ${d}`).join("\n") : ""}`
+          : `ï¿½?${result.message}${result.details ? "\n" + result.details.map((d: string) => `  ${d}`).join("\n") : ""}`
         output.parts = [
           {
             type: "text",
