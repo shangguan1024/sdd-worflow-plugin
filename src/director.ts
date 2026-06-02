@@ -71,7 +71,17 @@ export class Director {
     return {
       success: true,
       message: "SDD project initialized successfully",
-      details: [`Project: ${path}`, `Template: ${template}`],
+      details: [
+        `Project: ${path}`,
+        `Template: ${template}`,
+        "",
+        "Configuration files created:",
+        "  - .sdd/project.json: Project metadata",
+        "  - .sdd/workflow_config.json: Customize additional_skills per phase",
+        "",
+        "To add custom skills, edit .sdd/workflow_config.json:",
+        '  { "phases": [{ "id": 3, "additional_skills": ["test-driven-development"] }] }',
+      ],
     }
   }
 

@@ -48,6 +48,23 @@ export class ProjectInitializer {
             project: { name: this.projectDir.split(/[/\\]/).pop() || "project", type: template, complexity: "medium" },
             harness: { enabled: true },
         }, null, 2), "utf-8");
+        writeFileSync(join(path, ".sdd", "workflow_config.json"), JSON.stringify({
+            version: "2.5",
+            phases: [
+                {
+                    id: 0,
+                    additional_skills: [],
+                },
+                {
+                    id: 3,
+                    additional_skills: ["code-review-quality"],
+                },
+                {
+                    id: 5,
+                    additional_skills: ["receiving-code-review"],
+                },
+            ],
+        }, null, 2), "utf-8");
     }
     initializeFeatureArtifacts(featureDir, featureName) {
         mkdirSync(featureDir, { recursive: true });
