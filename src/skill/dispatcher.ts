@@ -25,7 +25,10 @@ export class SkillDispatcher {
   }
 
   dispatchForCurrentPhase(): SkillDispatchResult {
-    const phase = this.state.currentPhase
+    return this.dispatchForPhase(this.state.currentPhase)
+  }
+
+  dispatchForPhase(phase: number): SkillDispatchResult {
     const allSkills = this.configLoader.getAllSkills(phase)
     const invokeMode = this.configLoader.getSkillInvokeMode(phase)
     const phaseConfig = this.configLoader.getPhaseConfig(phase)
@@ -113,12 +116,15 @@ ${additionalSkills.length > 0 ? `**Additional Skills**: ${additionalSkills.map((
 \`\`\`
 skill("${primarySkill?.name}")
 \`\`\`
-
+`
+      if (additionalSkills.length > 0) {
+        instruction += `
 Then for additional skills:
 \`\`\`
 skill("${additionalSkills[0]?.name}")
 \`\`\`
 `
+      }
     } else if (primarySkill?.invoke_timing === "pre_gate") {
       instruction += `
 **Execution Order**:
@@ -130,8 +136,11 @@ skill("${additionalSkills[0]?.name}")
 After completing phase tasks:
 \`\`\`
 skill("${primarySkill?.name}")
-skill("${additionalSkills[0]?.name}")
-sdd_gate phase=${phase + 1} action=check
+`
+      if (additionalSkills.length > 0) {
+        instruction += `skill("${additionalSkills[0]?.name}")\n`
+      }
+      instruction += `sdd_gate phase=${phase + 1} action=check
 \`\`\`
 `
     } else if (primarySkill?.invoke_timing === "during_phase") {

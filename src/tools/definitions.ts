@@ -345,6 +345,14 @@ export function toolDefinitions(
       description:
         "Dispatch skill chain for current phase. Returns all skills (primary + additional) with invoke timing. Use without args for automatic dispatch.",
       args: {
+        phase: tool
+          .schema
+          .number()
+          .int()
+          .min(0)
+          .max(6)
+          .optional()
+          .describe("Phase number (0-6). Uses current phase if not specified."),
         skill_name: tool
           .schema
           .string()
@@ -365,13 +373,16 @@ export function toolDefinitions(
       async execute(args) {
         const mode = args.mode as string ?? "all"
         const skillName = args.skill_name as string | undefined
+        const phase = args.phase !== undefined ? (args.phase as number) : state.currentPhase
+        
+        configLoader.reload()
         
         if (skillName) {
           const result = skillDispatcher.dispatchSkill(skillName, args.args as Record<string, unknown>)
           return `${formatResult(result)}\n\n${result.instruction}`
         }
         
-        const result = skillDispatcher.dispatchForCurrentPhase()
+        const result = skillDispatcher.dispatchForPhase(phase)
         
         let filteredSkills = result.skills
         if (mode === "primary") {
@@ -383,7 +394,7 @@ export function toolDefinitions(
         const filteredResult = {
           ...result,
           skills: filteredSkills,
-          message: `${filteredSkills.length} skills (${mode}) ready for Phase ${state.currentPhase}`,
+          message: `${filteredSkills.length} skills (${mode}) ready for Phase ${phase}`,
         }
         
         return `${formatResult(filteredResult)}\n\n${result.instruction}`

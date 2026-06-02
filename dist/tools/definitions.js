@@ -277,6 +277,14 @@ export function toolDefinitions(director, state) {
         sdd_dispatch_skill: tool({
             description: "Dispatch skill chain for current phase. Returns all skills (primary + additional) with invoke timing. Use without args for automatic dispatch.",
             args: {
+                phase: tool
+                    .schema
+                    .number()
+                    .int()
+                    .min(0)
+                    .max(6)
+                    .optional()
+                    .describe("Phase number (0-6). Uses current phase if not specified."),
                 skill_name: tool
                     .schema
                     .string()
@@ -297,11 +305,13 @@ export function toolDefinitions(director, state) {
             async execute(args) {
                 const mode = args.mode ?? "all";
                 const skillName = args.skill_name;
+                const phase = args.phase !== undefined ? args.phase : state.currentPhase;
+                configLoader.reload();
                 if (skillName) {
                     const result = skillDispatcher.dispatchSkill(skillName, args.args);
                     return `${formatResult(result)}\n\n${result.instruction}`;
                 }
-                const result = skillDispatcher.dispatchForCurrentPhase();
+                const result = skillDispatcher.dispatchForPhase(phase);
                 let filteredSkills = result.skills;
                 if (mode === "primary") {
                     filteredSkills = result.skills.filter(s => s.mode === "primary");
@@ -312,7 +322,7 @@ export function toolDefinitions(director, state) {
                 const filteredResult = {
                     ...result,
                     skills: filteredSkills,
-                    message: `${filteredSkills.length} skills (${mode}) ready for Phase ${state.currentPhase}`,
+                    message: `${filteredSkills.length} skills (${mode}) ready for Phase ${phase}`,
                 };
                 return `${formatResult(filteredResult)}\n\n${result.instruction}`;
             },
