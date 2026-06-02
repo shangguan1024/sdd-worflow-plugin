@@ -7,7 +7,7 @@ interface GateResult {
 }
 
 const BLOCKED_TOOLS_BY_PHASE: Record<number, string[]> = {
-  [Phase.UNDERSTANDING]: ["bash", "edit", "write"],
+  [Phase.INIT]: ["bash", "edit", "write"],
   [Phase.REQUIREMENTS]: ["bash"],
   [Phase.PLANNING]: [],
   [Phase.DEVELOPMENT]: [],

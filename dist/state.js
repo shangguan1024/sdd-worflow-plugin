@@ -3,7 +3,6 @@ import { join } from "path";
 export var Phase;
 (function (Phase) {
     Phase[Phase["INIT"] = 0] = "INIT";
-    Phase[Phase["UNDERSTANDING"] = -1] = "UNDERSTANDING";
     Phase[Phase["REQUIREMENTS"] = 1] = "REQUIREMENTS";
     Phase[Phase["PLANNING"] = 2] = "PLANNING";
     Phase[Phase["DEVELOPMENT"] = 3] = "DEVELOPMENT";
@@ -12,9 +11,9 @@ export var Phase;
     Phase[Phase["PERSISTENCE"] = 6] = "PERSISTENCE";
     Phase[Phase["COMPLETED"] = 7] = "COMPLETED";
 })(Phase || (Phase = {}));
+export const RESEARCH = Phase.INIT; // Phase 0 alias
 export const PHASE_NAMES = {
-    [Phase.INIT]: "Init",
-    [Phase.UNDERSTANDING]: "Research & Understanding",
+    [Phase.INIT]: "Research & Understanding",
     [Phase.REQUIREMENTS]: "Requirements & Design",
     [Phase.PLANNING]: "Implementation Planning",
     [Phase.DEVELOPMENT]: "Module Development",
@@ -23,9 +22,17 @@ export const PHASE_NAMES = {
     [Phase.PERSISTENCE]: "Memory Persistence",
     [Phase.COMPLETED]: "Completed",
 };
+export const PHASE_SKILLS = {
+    [Phase.INIT]: "comprehensive-research-agent",
+    [Phase.REQUIREMENTS]: "brainstorming",
+    [Phase.PLANNING]: "writing-plans",
+    [Phase.DEVELOPMENT]: "subagent-driven-development",
+    [Phase.INTEGRATION]: "verification-before-completion",
+    [Phase.REVIEW]: "requesting-code-review",
+    [Phase.PERSISTENCE]: "memory-systems",
+};
 const VALID_TRANSITIONS = {
-    [Phase.INIT]: [Phase.UNDERSTANDING, Phase.REQUIREMENTS],
-    [Phase.UNDERSTANDING]: [Phase.REQUIREMENTS],
+    [Phase.INIT]: [Phase.REQUIREMENTS],
     [Phase.REQUIREMENTS]: [Phase.PLANNING],
     [Phase.PLANNING]: [Phase.DEVELOPMENT],
     [Phase.DEVELOPMENT]: [Phase.INTEGRATION],
@@ -116,6 +123,9 @@ export class SddState {
     }
     getPhaseName() {
         return PHASE_NAMES[this.currentPhase] ?? `Phase ${this.currentPhase}`;
+    }
+    getPhaseSkill() {
+        return PHASE_SKILLS[this.currentPhase];
     }
     resetContextMonitor() {
         this.editCount = 0;

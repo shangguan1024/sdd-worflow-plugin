@@ -4,6 +4,8 @@ import { SddState, Phase, PHASE_NAMES } from "../state.js"
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 import type { ToolResult } from "@opencode-ai/plugin"
+import { SkillDispatcher } from "../skill/dispatcher.js"
+import { ConfigLoader } from "../config/loader.js"
 
 function formatResult(result: {
   success: boolean
@@ -56,11 +58,11 @@ function getPhaseRequirements(
 
   if (phase === Phase.DEVELOPMENT) {
     requirements.push("Requirements: Implementation plan must exist, constitution compliance passed")
-    const planFile = join(featureDir, "implementation-plan.md")
+    const planFile = join(featureDir, "task_plan.md")
     if (existsSync(planFile)) {
-      requirements.push("implementation-plan.md: present")
+      requirements.push("task_plan.md: present")
     } else {
-      requirements.push("implementation-plan.md: MISSING")
+      requirements.push("task_plan.md: MISSING")
     }
   }
 
@@ -85,6 +87,9 @@ export function toolDefinitions(
   director: Director,
   state: SddState
 ): Record<string, ReturnType<typeof tool>> {
+  const configLoader = new ConfigLoader(state.getProjectDir())
+  const skillDispatcher = new SkillDispatcher(configLoader, state)
+
   return {
     sdd_init: tool({
       description:
@@ -200,7 +205,7 @@ export function toolDefinitions(
 
         if (action === "approve") {
           if (!confirmed) {
-            const requirements = getPhaseRequirements(phase, state, join)
+            const requirements = director.checkGateRequirements(phase).details ?? []
             return formatResult({
               success: false,
               message:
@@ -323,11 +328,11 @@ export function toolDefinitions(
           "features",
           state.featureName
         )
-        const designFile = join(featureDir, "design-doc.md")
+        const designFile = join(featureDir, "design.md")
         if (!existsSync(designFile)) {
           return formatResult({
             success: false,
-            message: "No design-doc.md found",
+            message: "No design.md found",
           })
         }
         const content = readFileSync(designFile, "utf-8")
@@ -335,6 +340,37 @@ export function toolDefinitions(
           title: "Memory details (Layer 3)",
           output: content.slice(0, 5000),
         }
+      },
+    }),
+
+    sdd_dispatch_skill: tool({
+      description:
+        "Dispatch a skill for current phase or invoke a specific skill. Recommended: use without args to dispatch the configured skill for current phase.",
+      args: {
+        skill_name: tool
+          .schema
+          .string()
+          .optional()
+          .describe("Skill name to invoke (optional, uses current phase skill if not specified)"),
+        args: tool
+          .schema
+          .record(tool.schema.string(), tool.schema.any())
+          .optional()
+          .describe("Skill arguments"),
+      },
+      async execute(args) {
+        const skillName = args.skill_name as string | undefined
+        
+        if (skillName) {
+          const result = skillDispatcher.dispatchSkill(skillName, args.args as Record<string, unknown>)
+          return formatResult(result)
+        }
+        
+        const result = skillDispatcher.dispatchForCurrentPhase()
+        if (result.success && result.instruction) {
+          return `${formatResult(result)}\n\n${result.instruction}`
+        }
+        return formatResult(result)
       },
     }),
   }

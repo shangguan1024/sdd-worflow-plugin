@@ -2,6 +2,8 @@ import { tool } from "@opencode-ai/plugin";
 import { Phase, PHASE_NAMES } from "../state.js";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { SkillDispatcher } from "../skill/dispatcher.js";
+import { ConfigLoader } from "../config/loader.js";
 function formatResult(result) {
     if (result.details && result.details.length > 0) {
         return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}\n${result.details.map(d => `  ${d}`).join("\n")}`;
@@ -39,12 +41,12 @@ function getPhaseRequirements(phase, state, join) {
     }
     if (phase === Phase.DEVELOPMENT) {
         requirements.push("Requirements: Implementation plan must exist, constitution compliance passed");
-        const planFile = join(featureDir, "implementation-plan.md");
+        const planFile = join(featureDir, "task_plan.md");
         if (existsSync(planFile)) {
-            requirements.push("implementation-plan.md: present");
+            requirements.push("task_plan.md: present");
         }
         else {
-            requirements.push("implementation-plan.md: MISSING");
+            requirements.push("task_plan.md: MISSING");
         }
     }
     if (phase === Phase.INTEGRATION) {
@@ -59,6 +61,8 @@ function getPhaseRequirements(phase, state, join) {
     return requirements;
 }
 export function toolDefinitions(director, state) {
+    const configLoader = new ConfigLoader(state.getProjectDir());
+    const skillDispatcher = new SkillDispatcher(configLoader, state);
     return {
         sdd_init: tool({
             description: "Initialize SDD-Workflow project structure (directories, constitution, config, memory artifacts)",
@@ -158,7 +162,7 @@ export function toolDefinitions(director, state) {
                 const confirmed = args.confirmed === true;
                 if (action === "approve") {
                     if (!confirmed) {
-                        const requirements = getPhaseRequirements(phase, state, join);
+                        const requirements = director.checkGateRequirements(phase).details ?? [];
                         return formatResult({
                             success: false,
                             message: `⚠️ HUMAN CONFIRMATION REQUIRED for Phase ${phase} (${PHASE_NAMES[phase] ?? `Phase ${phase}`})`,
@@ -257,11 +261,11 @@ export function toolDefinitions(director, state) {
             },
             async execute(args) {
                 const featureDir = join(state.getProjectDir(), "docs", "features", state.featureName);
-                const designFile = join(featureDir, "design-doc.md");
+                const designFile = join(featureDir, "design.md");
                 if (!existsSync(designFile)) {
                     return formatResult({
                         success: false,
-                        message: "No design-doc.md found",
+                        message: "No design.md found",
                     });
                 }
                 const content = readFileSync(designFile, "utf-8");
@@ -269,6 +273,33 @@ export function toolDefinitions(director, state) {
                     title: "Memory details (Layer 3)",
                     output: content.slice(0, 5000),
                 };
+            },
+        }),
+        sdd_dispatch_skill: tool({
+            description: "Dispatch a skill for current phase or invoke a specific skill. Recommended: use without args to dispatch the configured skill for current phase.",
+            args: {
+                skill_name: tool
+                    .schema
+                    .string()
+                    .optional()
+                    .describe("Skill name to invoke (optional, uses current phase skill if not specified)"),
+                args: tool
+                    .schema
+                    .record(tool.schema.string(), tool.schema.any())
+                    .optional()
+                    .describe("Skill arguments"),
+            },
+            async execute(args) {
+                const skillName = args.skill_name;
+                if (skillName) {
+                    const result = skillDispatcher.dispatchSkill(skillName, args.args);
+                    return formatResult(result);
+                }
+                const result = skillDispatcher.dispatchForCurrentPhase();
+                if (result.success && result.instruction) {
+                    return `${formatResult(result)}\n\n${result.instruction}`;
+                }
+                return formatResult(result);
             },
         }),
     };

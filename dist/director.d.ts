@@ -8,6 +8,9 @@ export declare class Director {
     private state;
     private projectDir;
     private initializer;
+    private gateChecker;
+    private phaseOrchestrator;
+    private configLoader;
     constructor(projectDir: string, state: SddState);
     executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult>;
     private initialize;
@@ -16,6 +19,8 @@ export declare class Director {
     private showStatus;
     private complete;
     private gateOperation;
+    checkGateRequirements(phase: number): CommandResult;
     private refreshContext;
+    private dispatchSkill;
     private listActiveFeatures;
 }

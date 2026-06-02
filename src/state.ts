@@ -3,19 +3,19 @@ import { join } from "path"
 
 export enum Phase {
   INIT = 0,
-  UNDERSTANDING = -1,
-  REQUIREMENTS = 1,
-  PLANNING = 2,
-  DEVELOPMENT = 3,
-  INTEGRATION = 4,
-  REVIEW = 5,
-  PERSISTENCE = 6,
+  REQUIREMENTS = 1,    // Phase 1
+  PLANNING = 2,        // Phase 2
+  DEVELOPMENT = 3,     // Phase 3
+  INTEGRATION = 4,     // Phase 4
+  REVIEW = 5,          // Phase 5
+  PERSISTENCE = 6,     // Phase 6
   COMPLETED = 7,
 }
 
+export const RESEARCH = Phase.INIT  // Phase 0 alias
+
 export const PHASE_NAMES: Record<number, string> = {
-  [Phase.INIT]: "Init",
-  [Phase.UNDERSTANDING]: "Research & Understanding",
+  [Phase.INIT]: "Research & Understanding",
   [Phase.REQUIREMENTS]: "Requirements & Design",
   [Phase.PLANNING]: "Implementation Planning",
   [Phase.DEVELOPMENT]: "Module Development",
@@ -25,9 +25,18 @@ export const PHASE_NAMES: Record<number, string> = {
   [Phase.COMPLETED]: "Completed",
 }
 
+export const PHASE_SKILLS: Record<number, string> = {
+  [Phase.INIT]: "comprehensive-research-agent",
+  [Phase.REQUIREMENTS]: "brainstorming",
+  [Phase.PLANNING]: "writing-plans",
+  [Phase.DEVELOPMENT]: "subagent-driven-development",
+  [Phase.INTEGRATION]: "verification-before-completion",
+  [Phase.REVIEW]: "requesting-code-review",
+  [Phase.PERSISTENCE]: "memory-systems",
+}
+
 const VALID_TRANSITIONS: Record<number, number[]> = {
-  [Phase.INIT]: [Phase.UNDERSTANDING, Phase.REQUIREMENTS],
-  [Phase.UNDERSTANDING]: [Phase.REQUIREMENTS],
+  [Phase.INIT]: [Phase.REQUIREMENTS],
   [Phase.REQUIREMENTS]: [Phase.PLANNING],
   [Phase.PLANNING]: [Phase.DEVELOPMENT],
   [Phase.DEVELOPMENT]: [Phase.INTEGRATION],
@@ -146,6 +155,10 @@ export class SddState {
 
   getPhaseName(): string {
     return PHASE_NAMES[this.currentPhase] ?? `Phase ${this.currentPhase}`
+  }
+
+  getPhaseSkill(): string | undefined {
+    return PHASE_SKILLS[this.currentPhase]
   }
 
   resetContextMonitor(): void {

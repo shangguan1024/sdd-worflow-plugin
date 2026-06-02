@@ -1,6 +1,6 @@
 import { Phase } from "../state.js";
 const BLOCKED_TOOLS_BY_PHASE = {
-    [Phase.UNDERSTANDING]: ["bash", "edit", "write"],
+    [Phase.INIT]: ["bash", "edit", "write"],
     [Phase.REQUIREMENTS]: ["bash"],
     [Phase.PLANNING]: [],
     [Phase.DEVELOPMENT]: [],

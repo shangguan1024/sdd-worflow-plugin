@@ -1,15 +1,16 @@
 export declare enum Phase {
     INIT = 0,
-    UNDERSTANDING = -1,
-    REQUIREMENTS = 1,
-    PLANNING = 2,
-    DEVELOPMENT = 3,
-    INTEGRATION = 4,
-    REVIEW = 5,
-    PERSISTENCE = 6,
+    REQUIREMENTS = 1,// Phase 1
+    PLANNING = 2,// Phase 2
+    DEVELOPMENT = 3,// Phase 3
+    INTEGRATION = 4,// Phase 4
+    REVIEW = 5,// Phase 5
+    PERSISTENCE = 6,// Phase 6
     COMPLETED = 7
 }
+export declare const RESEARCH = Phase.INIT;
 export declare const PHASE_NAMES: Record<number, string>;
+export declare const PHASE_SKILLS: Record<number, string>;
 export interface SddStateData {
     currentPhase: number;
     featureName: string;
@@ -48,6 +49,7 @@ export declare class SddState {
     approveGate(phase: Phase): void;
     isGateApproved(phase: Phase): boolean;
     getPhaseName(): string;
+    getPhaseSkill(): string | undefined;
     resetContextMonitor(): void;
     recordEdit(filePath: string): void;
     recordTask(taskName: string): void;

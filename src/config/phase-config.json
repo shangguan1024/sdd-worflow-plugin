@@ -1,0 +1,121 @@
+{
+  "version": "2.5",
+  "phases": [
+    {
+      "id": 0,
+      "name": "Research & Understanding",
+      "blocked_tools": ["edit", "write", "bash"],
+      "allowed_tools": ["read", "glob", "grep"],
+      "skill": "comprehensive-research-agent",
+      "required_files": ["findings.md"],
+      "required_sections": ["## Phase 0: Research"],
+      "gate_requirements": [
+        "5+ specific files analyzed",
+        "2+ external citations",
+        "2+ constraints",
+        "2+ alternatives with 3+ pros/cons"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Requirements & Design",
+      "blocked_tools": ["bash"],
+      "allowed_tools": ["read", "glob", "grep", "edit", "write"],
+      "skill": "brainstorming",
+      "required_files": ["findings.md", "design.md"],
+      "required_sections": ["## Phase 1: Design Summary"],
+      "gate_requirements": [
+        "Design document generated",
+        "Constitution compliance passed",
+        "Total-Part structure complete"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Implementation Planning",
+      "blocked_tools": [],
+      "allowed_tools": ["all"],
+      "skill": "writing-plans",
+      "required_files": ["task_plan.md"],
+      "required_sections": ["## Phase 2: Plan Summary"],
+      "gate_requirements": [
+        "Implementation plan exists",
+        "Task decomposition complete",
+        "Test strategy defined"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Module Development",
+      "blocked_tools": [],
+      "allowed_tools": ["all"],
+      "skill": "subagent-driven-development",
+      "required_files": ["task_plan.md"],
+      "required_sections": ["## Phase 3: Implementation Summary"],
+      "gate_requirements": [
+        "All tasks completed",
+        "Unit tests pass",
+        "Compile successful"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Integration & Testing",
+      "blocked_tools": [],
+      "allowed_tools": ["all"],
+      "skill": "verification-before-completion",
+      "required_files": ["findings.md"],
+      "required_sections": ["## Phase 4: Test Summary"],
+      "gate_requirements": [
+        "Integration tests pass",
+        "E2E tests pass",
+        "REQ-ID coverage >= 80%"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Code Quality Review",
+      "blocked_tools": [],
+      "allowed_tools": ["all"],
+      "skill": "requesting-code-review",
+      "required_files": [
+        "reviews/architecture_review.md",
+        "reviews/code_quality_review.md"
+      ],
+      "required_sections": ["## Phase 5: Review Summary"],
+      "gate_requirements": [
+        "Architecture review complete",
+        "Code quality review complete",
+        "All 4 artifacts verified"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Memory Persistence",
+      "blocked_tools": [],
+      "allowed_tools": ["all"],
+      "skill": "memory-systems",
+      "required_files": ["PROJECT_STATE.md", "AGENTS.md"],
+      "required_sections": [],
+      "gate_requirements": [
+        "All memory artifacts exist",
+        "PROJECT_STATE.md updated",
+        "AGENTS.md updated"
+      ]
+    }
+  ],
+  "transitions": {
+    "0": [1],
+    "1": [2],
+    "2": [3],
+    "3": [4],
+    "4": [5],
+    "5": [6],
+    "6": [7]
+  },
+  "thresholds": {
+    "edit_warning": 5,
+    "edit_hard_limit": 15,
+    "refresh_interval": 20
+  }
+}

@@ -1,58 +1,16 @@
-import { Phase } from "../state.js";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { PHASE0_PROMPT } from "../prompts/phase0.js";
-import { PHASE1_PROMPT } from "../prompts/phase1.js";
-import { PHASE2_PROMPT } from "../prompts/phase2.js";
-import { PHASE3_PROMPT } from "../prompts/phase3.js";
-import { PHASE4_PROMPT } from "../prompts/phase4.js";
-import { PHASE5_PROMPT } from "../prompts/phase5.js";
-import { PHASE6_PROMPT } from "../prompts/phase6.js";
-import { CORE_PROMPT } from "../prompts/core.js";
-const PHASE_PROMPTS = {
-    [Phase.UNDERSTANDING]: PHASE0_PROMPT,
-    [Phase.REQUIREMENTS]: PHASE1_PROMPT,
-    [Phase.PLANNING]: PHASE2_PROMPT,
-    [Phase.DEVELOPMENT]: PHASE3_PROMPT,
-    [Phase.INTEGRATION]: PHASE4_PROMPT,
-    [Phase.REVIEW]: PHASE5_PROMPT,
-    [Phase.PERSISTENCE]: PHASE6_PROMPT,
-};
-export const contextInjector = {
-    getPhasePrompt(phase, state) {
-        const phaseSpecific = PHASE_PROMPTS[phase] ?? "";
-        return `${CORE_PROMPT}\n\n${phaseSpecific}\n\nCurrent Phase: ${phase} (${state.getPhaseName()})\nFeature: ${state.featureName}`;
-    },
-    injectMemoryContext(phase, state, projectDir) {
-        const parts = [];
-        const constitutionFile = join(projectDir, "CONSTITUTION", "core.md");
-        if (existsSync(constitutionFile)) {
-            parts.push("## Core Principles (Mandatory)\n\n" + readFileSync(constitutionFile, "utf-8"));
-        }
-        const agentsFile = join(projectDir, "AGENTS.md");
-        if (existsSync(agentsFile)) {
-            const content = readFileSync(agentsFile, "utf-8");
-            parts.push(content.slice(0, 2000));
-        }
-        if (state.featureName) {
-            const featureDir = join(projectDir, "docs", "features", state.featureName);
-            for (const filename of ["findings.md", "task_plan.md", "design-doc.md"]) {
-                const filepath = join(featureDir, filename);
-                if (existsSync(filepath)) {
-                    const content = readFileSync(filepath, "utf-8");
-                    const phaseSection = extractPhaseSection(content, phase);
-                    if (phaseSection) {
-                        parts.push(`## ${filename} (Phase ${phase} excerpt)\n\n${phaseSection}`);
-                    }
-                    else {
-                        parts.push(`## ${filename} (excerpt)\n\n${content.slice(0, 1500)}`);
-                    }
-                }
-            }
-        }
-        return parts.join("\n\n---\n\n");
-    },
-};
+import { Phase, PHASE_SKILLS } from "../state.js";
+function getSkillDocsForPhase(phase) {
+    const docs = ["phases-reference.md"];
+    if (phase === Phase.REQUIREMENTS) {
+        docs.push("design-doc-template.md");
+        docs.push("interface-example.md");
+        docs.push("dependency-example.md");
+    }
+    docs.push("visualization-guide.md");
+    return docs;
+}
 function extractPhaseSection(content, phase) {
     const markers = [`## Phase ${phase}:`, `## Phase ${phase}`];
     for (const marker of markers) {
@@ -65,4 +23,89 @@ function extractPhaseSection(content, phase) {
     }
     return "";
 }
+export const contextInjector = {
+    getPhasePrompt(phase, state) {
+        const skillName = PHASE_SKILLS[phase];
+        const skillDocs = getSkillDocsForPhase(phase);
+        let prompt = `
+## Phase ${phase}: ${state.getPhaseName()}
+
+**Current Feature**: ${state.featureName || "Not set"}
+
+### Step 0: Read Skill Documentation (MANDATORY)
+Before executing this phase, READ these Skill documents:
+${skillDocs.map(doc => `- ${doc}`).join("\n")}
+
+Skill documents are located in ~/.config/opencode/skills/sdd-workflow/
+
+### Step 1: Invoke Recommended Skill
+${skillName ? `Recommended: skill("${skillName}")` : "No specific skill recommended."}
+
+${skillName ? `
+Invoke skill by:
+- Calling skill("${skillName}") tool
+- Or saying: "Use ${skillName} skill"
+` : ""}
+
+### Step 2: Execute Phase Tasks
+See phases-reference.md for detailed execution steps.
+
+### Step 3: Gate Approval
+When phase tasks complete:
+- sdd_gate phase=${phase + 1} action=check
+- sdd_gate phase=${phase + 1} action=approve (requires user confirmation)
+`;
+        return prompt;
+    },
+    injectMemoryContext(phase, state, projectDir) {
+        const parts = [];
+        const constitutionFile = join(projectDir, "CONSTITUTION", "core.md");
+        if (existsSync(constitutionFile)) {
+            parts.push("## Core Principles (Mandatory)\n\n" + readFileSync(constitutionFile, "utf-8").slice(0, 1000));
+        }
+        const agentsFile = join(projectDir, "AGENTS.md");
+        if (existsSync(agentsFile)) {
+            const content = readFileSync(agentsFile, "utf-8");
+            parts.push(content.slice(0, 2000));
+        }
+        if (state.featureName) {
+            const featureDir = join(projectDir, "docs", "features", state.featureName);
+            for (const filename of ["findings.md", "task_plan.md", "design.md"]) {
+                const filepath = join(featureDir, filename);
+                if (existsSync(filepath)) {
+                    const content = readFileSync(filepath, "utf-8");
+                    const phaseSection = extractPhaseSection(content, phase);
+                    if (phaseSection) {
+                        parts.push(`## ${filename} (Phase ${phase} excerpt)\n\n${phaseSection.slice(0, 500)}`);
+                    }
+                    else {
+                        parts.push(`## ${filename} (excerpt)\n\n${content.slice(0, 1000)}`);
+                    }
+                }
+            }
+        }
+        parts.push(`
+## Skill Documentation Reminder
+Read Skill documents before executing phase:
+- phases-reference.md (detailed steps)
+- design-doc-template.md (for Phase 1)
+- interface-example.md (for Phase 1)
+- dependency-example.md (for Phase 1)
+`);
+        return parts.join("\n\n---\n\n");
+    },
+    injectSkillDocPaths() {
+        return `
+## Skill Documentation Paths
+
+| Phase | Document | Purpose |
+|-------|----------|---------|
+| All | phases-reference.md | Phase 0-6 detailed steps |
+| 1 | design-doc-template.md | Total-Part design structure |
+| 1 | interface-example.md | 8-dimension interface |
+| 1 | dependency-example.md | 5-dimension dependency |
+| All | visualization-guide.md | PlantUML/Mermaid |
+`;
+    }
+};
 //# sourceMappingURL=injector.js.map

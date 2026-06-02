@@ -1,7 +1,10 @@
 import { Phase, SddState } from "./state.js"
 import { ProjectInitializer } from "./project/initializer.js"
+import { GateChecker } from "./gate/checker.js"
+import { PhaseOrchestrator } from "./phase/orchestrator.js"
+import { ConfigLoader } from "./config/loader.js"
 import { join } from "path"
-import { existsSync, readFileSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs"
 
 export interface CommandResult {
   success: boolean
@@ -13,11 +16,17 @@ export class Director {
   private state: SddState
   private projectDir: string
   private initializer: ProjectInitializer
+  private gateChecker: GateChecker
+  private phaseOrchestrator: PhaseOrchestrator
+  private configLoader: ConfigLoader
 
   constructor(projectDir: string, state: SddState) {
     this.projectDir = projectDir
     this.state = state
     this.initializer = new ProjectInitializer(projectDir)
+    this.configLoader = new ConfigLoader(projectDir)
+    this.gateChecker = new GateChecker(state, this.configLoader, projectDir)
+    this.phaseOrchestrator = new PhaseOrchestrator(state, this.configLoader, projectDir)
   }
 
   async executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult> {
@@ -36,11 +45,13 @@ export class Director {
       case "complete":
         return this.complete(typeof parts[1] === "string" ? parts[1] : (args.feature as string || ""))
       case "gate":
-        return this.gateOperation(parts[1] ? parseInt(parts[1]) : (args.phase as number), parts[2] || (args.action as string) || "check")
+        return this.gateOperation(parts[1] ? parseInt(parts[1]) : (args.phase as number), parts[2] || (args.action as string) || "check", args.confirmed as boolean)
       case "refresh":
         return this.refreshContext(parts[1] || (args.reason as string) || "Manual refresh")
+      case "dispatch-skill":
+        return this.dispatchSkill(args.skill_name as string, args.args as Record<string, unknown>)
       default:
-        return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh` }
+        return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh, dispatch-skill` }
     }
   }
 
@@ -69,22 +80,15 @@ export class Director {
       return { success: false, message: "Feature name required: sdd start <feature>" }
     }
 
-    this.state.featureName = featureName
-    this.state.currentPhase = Phase.UNDERSTANDING
-    this.state.resetContextMonitor()
-
-    const featureDir = join(this.projectDir, "docs", "features", featureName)
-    this.initializer.initializeFeatureArtifacts(featureDir, featureName)
-
-    this.state.save()
+    const result = this.phaseOrchestrator.startFeature(featureName)
 
     return {
-      success: true,
-      message: `Feature '${featureName}' started. Current phase: Understanding (Phase 0)`,
+      success: result.success,
+      message: result.message,
       details: [
-        "Research & Understanding phase is mandatory before design.",
-        "Use the sdd-gate tool to check phase gate requirements.",
-        "Use sdd-refresh to refresh context when needed.",
+        "Phase 0 (Research & Understanding) is mandatory before design.",
+        "Use sdd_gate phase=1 action=check to check gate requirements.",
+        "Use sdd_dispatch_skill to invoke 'comprehensive-research-agent' skill.",
       ],
     }
   }
@@ -115,10 +119,10 @@ export class Director {
     if (existsSync(checkpointFile)) {
       try {
         const checkpoint = JSON.parse(readFileSync(checkpointFile, "utf-8"))
-        const phaseStr = checkpoint.phase ?? "1"
+        const phaseStr = checkpoint.phase ?? "0"
         this.state.currentPhase = phaseNameToEnum(phaseStr)
       } catch {
-        this.state.currentPhase = Phase.REQUIREMENTS
+        this.state.currentPhase = Phase.INIT
       }
     }
 
@@ -136,6 +140,7 @@ export class Director {
       `Feature: ${this.state.featureName}`,
       `Edits: ${this.state.editCount}`,
       `Tasks: ${this.state.taskCount}`,
+      `Recommended skill: ${this.state.getPhaseSkill() ?? "none"}`,
       `Gate approvals: ${Object.entries(this.state.gateApprovals).filter(([, v]) => v).map(([k]) => `Phase ${k}`).join(", ") || "None"}`,
     ]
 
@@ -168,31 +173,53 @@ export class Director {
       return { success: false, message: "No active feature to complete" }
     }
 
-    this.state.currentPhase = Phase.COMPLETED
-    this.state.save()
+    const result = this.phaseOrchestrator.completeFeature()
 
     return {
-      success: true,
-      message: `Workflow for '${featureName}' completed. Ready for merge.`,
-      details: [
+      success: result.success,
+      message: result.message,
+      details: result.success ? [
         "Update PROJECT_STATE.md and AGENTS.md before merging.",
         "Use verification-before-completion skill for final check.",
-      ],
+      ] : undefined,
     }
   }
 
-  private gateOperation(phase: number, action: string): CommandResult {
+  private gateOperation(phase: number, action: string, confirmed: boolean): CommandResult {
+    if (!Number.isInteger(phase)) {
+      return { success: false, message: "Phase number required: sdd gate <phase> <check|approve|block>" }
+    }
+
     if (action === "approve") {
-      const success = this.state.transition(phase)
-      if (!success) {
+      if (!confirmed) {
+        const gate = this.gateChecker.checkGate(phase)
         return {
           success: false,
-          message: `Cannot transition to Phase ${phase}. Current: Phase ${this.state.currentPhase} (${this.state.getPhaseName()}). Gate not passed or invalid transition.`,
+          message: `⚠️ HUMAN CONFIRMATION REQUIRED for Phase ${phase}`,
+          details: [
+            "DO NOT proceed without explicit human approval.",
+            "Ask the user: 'Phase gate requirements met. Should I proceed to Phase X?'",
+            "Only call sdd_gate again with confirmed=true after user says yes.",
+            "",
+            ...gate.details ?? [],
+          ],
         }
       }
+
+      const gate = this.gateChecker.checkGate(phase)
+      if (!gate.success) {
+        return {
+          success: false,
+          message: `Gate requirements not satisfied for Phase ${phase}`,
+          details: gate.details,
+        }
+      }
+
+      const result = this.phaseOrchestrator.transitionTo(phase)
       return {
-        success: true,
-        message: `Gate approved. Transitioned to Phase ${phase} (${this.state.getPhaseName()}).`,
+        success: result.success,
+        message: result.success ? `Gate approved. Transitioned to Phase ${phase} (${this.state.getPhaseName()}).` : result.message,
+        details: gate.details,
       }
     }
 
@@ -203,48 +230,15 @@ export class Director {
       }
     }
 
-    const featureDir = join(this.projectDir, "docs", "features", this.state.featureName)
-    const requirements: string[] = []
+    return this.gateChecker.checkGate(phase)
+  }
 
-    requirements.push(`Current phase: ${this.state.currentPhase} (${this.state.getPhaseName()})`)
-    requirements.push(`Transition to: Phase ${phase}`)
-
-    if (phase === Phase.REQUIREMENTS) {
-      requirements.push("Requirements: findings.md must have Phase 0 section with research (5+ files, 2+ citations, 2+ constraints, 2+ alternatives)")
-      const findingsFile = join(featureDir, "findings.md")
-      if (existsSync(findingsFile)) {
-        const content = readFileSync(findingsFile, "utf-8")
-        const hasPhase0 = content.includes("## Phase 0: Research") || content.includes("## Research")
-        requirements.push(`Phase 0 section: ${hasPhase0 ? "present" : "MISSING"}`)
-      } else {
-        requirements.push("findings.md: MISSING")
-      }
-    }
-
-    if (phase === Phase.PLANNING) {
-      requirements.push("Requirements: Design document must exist, constitution compliance passed")
-    }
-
-    if (phase === Phase.DEVELOPMENT) {
-      requirements.push("Requirements: Implementation plan must exist, constitution compliance passed")
-    }
-
-    if (phase === Phase.INTEGRATION) {
-      requirements.push("Requirements: All tasks completed, unit tests pass, lint/typecheck pass")
-    }
-
-    if (phase === Phase.REVIEW) {
-      requirements.push("Requirements: Integration tests pass, E2E tests pass")
-    }
-
-    if (phase === Phase.PERSISTENCE) {
-      requirements.push("Requirements: All 4 review artifacts verified (architecture, code quality, requirements traceability, test coverage)")
-    }
-
+  public checkGateRequirements(phase: number): CommandResult {
+    const result = this.gateChecker.checkGate(phase)
     return {
-      success: true,
-      message: "Phase gate check results",
-      details: requirements,
+      success: result.success,
+      message: result.message,
+      details: result.details,
     }
   }
 
@@ -260,13 +254,33 @@ export class Director {
     }
   }
 
+  private dispatchSkill(skillName?: string, args?: Record<string, unknown>): CommandResult {
+    const skill = skillName ?? this.state.getPhaseSkill()
+    if (!skill) {
+      return {
+        success: false,
+        message: `No skill configured for Phase ${this.state.currentPhase}`,
+      }
+    }
+
+    return {
+      success: true,
+      message: `Skill '${skill}' ready to dispatch`,
+      details: [
+        `Invoke skill: skill("${skill}")`,
+        `Or in opencode: "Use ${skill} skill"`,
+        `Args: ${JSON.stringify(args ?? {})}`,
+      ],
+    }
+  }
+
   private listActiveFeatures(): string[] {
     const featuresDir = join(this.projectDir, "docs", "features")
     if (!existsSync(featuresDir)) return []
 
     const active: string[] = []
     try {
-      const entries = require("fs").readdirSync(featuresDir, { withFileTypes: true })
+      const entries = readdirSync(featuresDir, { withFileTypes: true })
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const checkpointFile = join(featuresDir, entry.name, ".sdd", "checkpoint.json")
@@ -285,6 +299,8 @@ export class Director {
 
 function phaseNameToEnum(name: string): Phase {
   const mapping: Record<string, Phase> = {
+    "0": Phase.INIT,
+    "research": Phase.INIT,
     "1": Phase.REQUIREMENTS,
     "requirements": Phase.REQUIREMENTS,
     "2": Phase.PLANNING,
@@ -297,10 +313,6 @@ function phaseNameToEnum(name: string): Phase {
     "review": Phase.REVIEW,
     "6": Phase.PERSISTENCE,
     "persistence": Phase.PERSISTENCE,
-    "0": Phase.INIT,
-    "init": Phase.INIT,
-    "-1": Phase.UNDERSTANDING,
-    "understanding": Phase.UNDERSTANDING,
   }
-  return mapping[name.toLowerCase()] ?? Phase.REQUIREMENTS
+  return mapping[name.toLowerCase()] ?? Phase.INIT
 }
