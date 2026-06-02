@@ -165,7 +165,7 @@ export class Director {
             `Feature: ${this.state.featureName}`,
             `Edits: ${this.state.editCount}`,
             `Tasks: ${this.state.taskCount}`,
-            `Recommended skill: ${this.state.getPhaseSkill() ?? "none"}`,
+            `Recommended skill: ${this.configLoader.getSkill(this.state.currentPhase) ?? "none"}`,
             `Gate approvals: ${Object.entries(this.state.gateApprovals).filter(([, v]) => v).map(([k]) => `Phase ${k}`).join(", ") || "None"}`,
         ];
         if (verbose) {
@@ -264,7 +264,7 @@ export class Director {
         };
     }
     dispatchSkill(skillName, args) {
-        const skill = skillName ?? this.state.getPhaseSkill();
+        const skill = skillName ?? this.configLoader.getSkill(this.state.currentPhase);
         if (!skill) {
             return {
                 success: false,

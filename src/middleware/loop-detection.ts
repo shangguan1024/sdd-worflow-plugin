@@ -10,14 +10,6 @@ const HARD_LIMIT = 15
 const EDIT_TOOLS = new Set(["edit", "write"])
 
 export const loopDetectionMiddleware = {
-  beforeEdit(
-    toolName: string,
-    args: Record<string, unknown>,
-    state: SddState
-  ): LoopResult {
-    return {}
-  },
-
   afterEdit(
     toolName: string,
     args: Record<string, unknown>,

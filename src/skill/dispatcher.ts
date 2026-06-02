@@ -1,5 +1,5 @@
 import { ConfigLoader, PhaseConfig } from "../config/loader.js"
-import { SddState, PHASE_SKILLS } from "../state.js"
+import { SddState } from "../state.js"
 
 export interface SkillDispatchResult {
   success: boolean

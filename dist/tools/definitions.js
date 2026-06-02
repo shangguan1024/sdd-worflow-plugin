@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
-import { Phase, PHASE_NAMES } from "../state.js";
+import { PHASE_NAMES } from "../state.js";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { SkillDispatcher } from "../skill/dispatcher.js";
@@ -9,56 +9,6 @@ function formatResult(result) {
         return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}\n${result.details.map(d => `  ${d}`).join("\n")}`;
     }
     return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}`;
-}
-function getPhaseRequirements(phase, state, join) {
-    const projectDir = state.getProjectDir();
-    const featureDir = join(projectDir, "docs", "features", state.featureName);
-    const requirements = [];
-    requirements.push(`Current phase: ${state.currentPhase} (${state.getPhaseName()})`);
-    requirements.push(`Transition to: Phase ${phase} (${PHASE_NAMES[phase] ?? `Phase ${phase}`})`);
-    if (phase === Phase.REQUIREMENTS) {
-        requirements.push("Requirements: findings.md must have Phase 0 section with research (5+ files, 2+ citations, 2+ constraints, 2+ alternatives)");
-        const findingsFile = join(featureDir, "findings.md");
-        if (existsSync(findingsFile)) {
-            const content = readFileSync(findingsFile, "utf-8");
-            const hasPhase0 = content.includes("## Phase 0: Research") ||
-                content.includes("## Research");
-            requirements.push(`Phase 0 section: ${hasPhase0 ? "present" : "MISSING"}`);
-        }
-        else {
-            requirements.push("findings.md: MISSING");
-        }
-    }
-    if (phase === Phase.PLANNING) {
-        requirements.push("Requirements: Design document must exist, constitution compliance passed");
-        const designFile = join(featureDir, "design.md");
-        if (existsSync(designFile)) {
-            requirements.push("design.md: present");
-        }
-        else {
-            requirements.push("design.md: MISSING");
-        }
-    }
-    if (phase === Phase.DEVELOPMENT) {
-        requirements.push("Requirements: Implementation plan must exist, constitution compliance passed");
-        const planFile = join(featureDir, "task_plan.md");
-        if (existsSync(planFile)) {
-            requirements.push("task_plan.md: present");
-        }
-        else {
-            requirements.push("task_plan.md: MISSING");
-        }
-    }
-    if (phase === Phase.INTEGRATION) {
-        requirements.push("Requirements: All tasks completed, unit tests pass, lint/typecheck pass");
-    }
-    if (phase === Phase.REVIEW) {
-        requirements.push("Requirements: Integration tests pass, E2E tests pass");
-    }
-    if (phase === Phase.PERSISTENCE) {
-        requirements.push("Requirements: All 4 review artifacts verified (architecture, code quality, requirements traceability, test coverage)");
-    }
-    return requirements;
 }
 export function toolDefinitions(director, state) {
     const configLoader = new ConfigLoader(state.getProjectDir());
@@ -192,12 +142,8 @@ export function toolDefinitions(director, state) {
                         message: `Gate blocked at Phase ${phase}. Complete current phase requirements first.`,
                     });
                 }
-                const requirements = getPhaseRequirements(phase, state, join);
-                return formatResult({
-                    success: true,
-                    message: "Phase gate check results",
-                    details: requirements,
-                });
+                const gate = director.checkGateRequirements(phase);
+                return formatResult(gate);
             },
         }),
         sdd_refresh: tool({

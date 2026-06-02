@@ -2,9 +2,6 @@ const WARNING_THRESHOLD = 5;
 const HARD_LIMIT = 15;
 const EDIT_TOOLS = new Set(["edit", "write"]);
 export const loopDetectionMiddleware = {
-    beforeEdit(toolName, args, state) {
-        return {};
-    },
     afterEdit(toolName, args, state) {
         if (!EDIT_TOOLS.has(toolName))
             return {};
