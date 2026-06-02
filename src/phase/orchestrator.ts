@@ -8,6 +8,7 @@ export interface TransitionResult {
   message: string
   from_phase: number
   to_phase: number
+  gate_approved?: boolean
 }
 
 export class PhaseOrchestrator {
@@ -31,6 +32,7 @@ export class PhaseOrchestrator {
         message: `Cannot transition from Phase ${from} to Phase ${phase}. Invalid transition.`,
         from_phase: from,
         to_phase: phase,
+        gate_approved: false,
       }
     }
 
@@ -41,9 +43,12 @@ export class PhaseOrchestrator {
         message: `Transition failed. State unchanged.`,
         from_phase: from,
         to_phase: phase,
+        gate_approved: false,
       }
     }
 
+    this.state.approveGate(phase)
+    
     if (this.state.featureName) {
       this.writeCheckpoint(this.state.featureName)
     }
@@ -53,6 +58,7 @@ export class PhaseOrchestrator {
       message: `Transitioned from Phase ${from} to Phase ${phase} (${this.state.getPhaseName()})`,
       from_phase: from,
       to_phase: phase,
+      gate_approved: true,
     }
   }
 
@@ -60,6 +66,7 @@ export class PhaseOrchestrator {
     this.state.featureName = featureName
     this.state.currentPhase = Phase.INIT
     this.state.resetContextMonitor()
+    this.state.gateApprovals = {}
 
     const featureDir = join(this.projectDir, "docs", "features", featureName)
     mkdirSync(featureDir, { recursive: true })
@@ -121,6 +128,7 @@ export class PhaseOrchestrator {
         feature: featureName,
         phase: String(this.state.currentPhase),
         phaseName: this.state.getPhaseName(),
+        gateApprovals: this.state.gateApprovals,
         updatedAt: new Date().toISOString(),
       }, null, 2),
       "utf-8"

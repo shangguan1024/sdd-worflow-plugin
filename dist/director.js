@@ -92,19 +92,46 @@ export class Director {
         if (!existsSync(featureDir)) {
             return { success: false, message: `Feature '${feature}' not found. Use: sdd start ${feature}` };
         }
-        this.state.featureName = feature;
-        this.state.resetContextMonitor();
         const checkpointFile = join(featureDir, ".sdd", "checkpoint.json");
+        let loadedPhase = Phase.INIT;
+        let loadedGateApprovals = {};
         if (existsSync(checkpointFile)) {
             try {
                 const checkpoint = JSON.parse(readFileSync(checkpointFile, "utf-8"));
                 const phaseStr = checkpoint.phase ?? "0";
-                this.state.currentPhase = phaseNameToEnum(phaseStr);
+                loadedPhase = phaseNameToEnum(phaseStr);
+                if (checkpoint.gateApprovals) {
+                    loadedGateApprovals = checkpoint.gateApprovals;
+                }
             }
             catch {
-                this.state.currentPhase = Phase.INIT;
+                loadedPhase = Phase.INIT;
             }
         }
+        else {
+            const findingsFile = join(featureDir, "findings.md");
+            const designFile = join(featureDir, "design.md");
+            const planFile = join(featureDir, "task_plan.md");
+            if (existsSync(planFile)) {
+                loadedPhase = Phase.DEVELOPMENT;
+                loadedGateApprovals = { 0: true, 1: true, 2: true };
+            }
+            else if (existsSync(designFile)) {
+                loadedPhase = Phase.PLANNING;
+                loadedGateApprovals = { 0: true, 1: true };
+            }
+            else if (existsSync(findingsFile)) {
+                loadedPhase = Phase.REQUIREMENTS;
+                loadedGateApprovals = { 0: true };
+            }
+            else {
+                loadedPhase = Phase.INIT;
+            }
+        }
+        this.state.featureName = feature;
+        this.state.currentPhase = loadedPhase;
+        this.state.gateApprovals = loadedGateApprovals;
+        this.state.resetContextMonitor();
         this.state.save();
         return {
             success: true,

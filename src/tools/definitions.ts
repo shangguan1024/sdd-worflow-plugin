@@ -220,19 +220,17 @@ export function toolDefinitions(
             })
           }
 
-          const success = state.transition(phase)
-          if (!success) {
+          const gate = director.checkGateRequirements(phase)
+          if (!gate.success) {
             return formatResult({
               success: false,
-              message:
-                `Cannot transition to Phase ${phase}. Current: Phase ${state.currentPhase} (${state.getPhaseName()}). Gate not passed or invalid transition.`,
+              message: `Gate requirements not satisfied for Phase ${phase}`,
+              details: gate.details,
             })
           }
-          return formatResult({
-            success: true,
-            message:
-              `✅ Gate approved by human. Transitioned to Phase ${phase} (${state.getPhaseName()}).`,
-          })
+
+          const result = await director.executeCommand(`gate ${phase} approve`, { confirmed: true })
+          return formatResult(result)
         }
 
         if (action === "block") {
@@ -345,13 +343,19 @@ export function toolDefinitions(
 
     sdd_dispatch_skill: tool({
       description:
-        "Dispatch a skill for current phase or invoke a specific skill. Recommended: use without args to dispatch the configured skill for current phase.",
+        "Dispatch skill chain for current phase. Returns all skills (primary + additional) with invoke timing. Use without args for automatic dispatch.",
       args: {
         skill_name: tool
           .schema
           .string()
           .optional()
-          .describe("Skill name to invoke (optional, uses current phase skill if not specified)"),
+          .describe("Specific skill to invoke (optional, uses all phase skills if not specified)"),
+        mode: tool
+          .schema
+          .enum(["all", "primary", "additional"])
+          .optional()
+          .default("all")
+          .describe("Which skills to dispatch: all=primary+additional, primary=only primary, additional=only additional"),
         args: tool
           .schema
           .record(tool.schema.string(), tool.schema.any())
@@ -359,18 +363,30 @@ export function toolDefinitions(
           .describe("Skill arguments"),
       },
       async execute(args) {
+        const mode = args.mode as string ?? "all"
         const skillName = args.skill_name as string | undefined
         
         if (skillName) {
           const result = skillDispatcher.dispatchSkill(skillName, args.args as Record<string, unknown>)
-          return formatResult(result)
+          return `${formatResult(result)}\n\n${result.instruction}`
         }
         
         const result = skillDispatcher.dispatchForCurrentPhase()
-        if (result.success && result.instruction) {
-          return `${formatResult(result)}\n\n${result.instruction}`
+        
+        let filteredSkills = result.skills
+        if (mode === "primary") {
+          filteredSkills = result.skills.filter(s => s.mode === "primary")
+        } else if (mode === "additional") {
+          filteredSkills = result.skills.filter(s => s.mode === "additional")
         }
-        return formatResult(result)
+        
+        const filteredResult = {
+          ...result,
+          skills: filteredSkills,
+          message: `${filteredSkills.length} skills (${mode}) ready for Phase ${state.currentPhase}`,
+        }
+        
+        return `${formatResult(filteredResult)}\n\n${result.instruction}`
       },
     }),
   }

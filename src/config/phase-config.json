@@ -7,6 +7,7 @@
       "blocked_tools": ["edit", "write", "bash"],
       "allowed_tools": ["read", "glob", "grep"],
       "skill": "comprehensive-research-agent",
+      "additional_skills": [],
       "required_files": ["findings.md"],
       "required_sections": ["## Phase 0: Research"],
       "gate_requirements": [
@@ -22,6 +23,7 @@
       "blocked_tools": ["bash"],
       "allowed_tools": ["read", "glob", "grep", "edit", "write"],
       "skill": "brainstorming",
+      "additional_skills": [],
       "required_files": ["findings.md", "design.md"],
       "required_sections": ["## Phase 1: Design Summary"],
       "gate_requirements": [
@@ -36,6 +38,7 @@
       "blocked_tools": [],
       "allowed_tools": ["all"],
       "skill": "writing-plans",
+      "additional_skills": [],
       "required_files": ["task_plan.md"],
       "required_sections": ["## Phase 2: Plan Summary"],
       "gate_requirements": [
@@ -50,6 +53,8 @@
       "blocked_tools": [],
       "allowed_tools": ["all"],
       "skill": "subagent-driven-development",
+      "additional_skills": ["code-review-quality"],
+      "skill_invoke_mode": "pre_gate",
       "required_files": ["task_plan.md"],
       "required_sections": ["## Phase 3: Implementation Summary"],
       "gate_requirements": [
@@ -64,6 +69,7 @@
       "blocked_tools": [],
       "allowed_tools": ["all"],
       "skill": "verification-before-completion",
+      "additional_skills": [],
       "required_files": ["findings.md"],
       "required_sections": ["## Phase 4: Test Summary"],
       "gate_requirements": [
@@ -78,6 +84,8 @@
       "blocked_tools": [],
       "allowed_tools": ["all"],
       "skill": "requesting-code-review",
+      "additional_skills": ["code-review-quality"],
+      "skill_invoke_mode": "pre_gate",
       "required_files": [
         "reviews/architecture_review.md",
         "reviews/code_quality_review.md"
@@ -95,6 +103,7 @@
       "blocked_tools": [],
       "allowed_tools": ["all"],
       "skill": "memory-systems",
+      "additional_skills": [],
       "required_files": ["PROJECT_STATE.md", "AGENTS.md"],
       "required_sections": [],
       "gate_requirements": [
@@ -117,5 +126,11 @@
     "edit_warning": 5,
     "edit_hard_limit": 15,
     "refresh_interval": 20
+  },
+  "skill_invoke_modes": {
+    "pre_phase": "Invoke before phase execution",
+    "during_phase": "Invoke during phase execution",
+    "pre_gate": "Invoke before gate check",
+    "post_gate": "Invoke after gate approval"
   }
 }

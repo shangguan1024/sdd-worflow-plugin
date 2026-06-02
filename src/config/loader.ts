@@ -7,6 +7,8 @@ export interface PhaseConfig {
   blocked_tools: string[]
   allowed_tools: string[]
   skill?: string
+  additional_skills?: string[]
+  skill_invoke_mode?: "pre_phase" | "during_phase" | "pre_gate" | "post_gate"
   required_files: string[]
   required_sections: string[]
   gate_requirements: string[]
@@ -21,6 +23,7 @@ export interface WorkflowConfig {
     edit_hard_limit: number
     refresh_interval: number
   }
+  skill_invoke_modes?: Record<string, string>
 }
 
 const DEFAULT_CONFIG: WorkflowConfig = {
@@ -32,6 +35,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: ["edit", "write", "bash"],
       allowed_tools: ["read", "glob", "grep"],
       skill: "comprehensive-research-agent",
+      additional_skills: [],
+      skill_invoke_mode: "pre_phase",
       required_files: ["findings.md"],
       required_sections: ["## Phase 0: Research"],
       gate_requirements: [
@@ -47,6 +52,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: ["bash"],
       allowed_tools: ["read", "glob", "grep", "edit", "write"],
       skill: "brainstorming",
+      additional_skills: [],
+      skill_invoke_mode: "pre_phase",
       required_files: ["findings.md", "design.md"],
       required_sections: ["## Phase 1: Design Summary"],
       gate_requirements: [
@@ -60,6 +67,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: [],
       allowed_tools: ["all"],
       skill: "writing-plans",
+      additional_skills: [],
+      skill_invoke_mode: "pre_phase",
       required_files: ["task_plan.md"],
       required_sections: ["## Phase 2: Plan Summary"],
       gate_requirements: ["Implementation plan exists"],
@@ -70,6 +79,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: [],
       allowed_tools: ["all"],
       skill: "subagent-driven-development",
+      additional_skills: ["code-review-quality"],
+      skill_invoke_mode: "pre_gate",
       required_files: ["task_plan.md"],
       required_sections: ["## Phase 3: Implementation Summary"],
       gate_requirements: ["All tasks completed", "Unit tests pass"],
@@ -80,6 +91,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: [],
       allowed_tools: ["all"],
       skill: "verification-before-completion",
+      additional_skills: [],
+      skill_invoke_mode: "pre_phase",
       required_files: ["findings.md"],
       required_sections: ["## Phase 4: Test Summary"],
       gate_requirements: ["Integration tests pass", "E2E tests pass"],
@@ -90,6 +103,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: [],
       allowed_tools: ["all"],
       skill: "requesting-code-review",
+      additional_skills: ["code-review-quality"],
+      skill_invoke_mode: "pre_gate",
       required_files: [
         "reviews/architecture_review.md",
         "reviews/code_quality_review.md",
@@ -103,6 +118,8 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       blocked_tools: [],
       allowed_tools: ["all"],
       skill: "memory-systems",
+      additional_skills: [],
+      skill_invoke_mode: "pre_phase",
       required_files: ["PROJECT_STATE.md", "AGENTS.md"],
       required_sections: [],
       gate_requirements: ["All memory artifacts exist"],
@@ -121,6 +138,12 @@ const DEFAULT_CONFIG: WorkflowConfig = {
     edit_warning: 5,
     edit_hard_limit: 15,
     refresh_interval: 20,
+  },
+  skill_invoke_modes: {
+    pre_phase: "Invoke before phase execution",
+    during_phase: "Invoke during phase execution",
+    pre_gate: "Invoke before gate check",
+    post_gate: "Invoke after gate approval",
   },
 }
 
@@ -162,6 +185,23 @@ export class ConfigLoader {
   getSkill(phaseId: number): string | undefined {
     const phase = this.getPhaseConfig(phaseId)
     return phase?.skill
+  }
+
+  getAdditionalSkills(phaseId: number): string[] {
+    const phase = this.getPhaseConfig(phaseId)
+    return phase?.additional_skills ?? []
+  }
+
+  getSkillInvokeMode(phaseId: number): string {
+    const phase = this.getPhaseConfig(phaseId)
+    return phase?.skill_invoke_mode ?? "pre_phase"
+  }
+
+  getAllSkills(phaseId: number): string[] {
+    const primary = this.getSkill(phaseId)
+    const additional = this.getAdditionalSkills(phaseId)
+    const all = primary ? [primary, ...additional] : additional
+    return all.filter((s) => s && s.length > 0)
   }
 
   canTransition(from: number, to: number): boolean {
