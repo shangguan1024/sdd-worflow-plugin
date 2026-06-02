@@ -1,0 +1,1 @@
+{"version":3,"file":"phase-gate.d.ts","sourceRoot":"","sources":["../../src/middleware/phase-gate.ts"],"names":[],"mappings":"AAAA,OAAO,EAAS,QAAQ,EAAE,MAAM,UAAU,CAAA;AAE1C,UAAU,UAAU;IAClB,OAAO,EAAE,OAAO,CAAA;IAChB,OAAO,CAAC,EAAE,MAAM,CAAA;IAChB,UAAU,CAAC,EAAE,MAAM,CAAA;CACpB;AAYD,wBAAgB,mBAAmB,CACjC,KAAK,EAAE,MAAM,EACb,QAAQ,EAAE,MAAM,EAChB,KAAK,EAAE,QAAQ,GACd,UAAU,CAeZ"}

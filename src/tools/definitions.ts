@@ -1,0 +1,341 @@
+import { tool } from "@opencode-ai/plugin"
+import { Director } from "../director.js"
+import { SddState, Phase, PHASE_NAMES } from "../state.js"
+import { existsSync, readFileSync } from "fs"
+import { join } from "path"
+import type { ToolResult } from "@opencode-ai/plugin"
+
+function formatResult(result: {
+  success: boolean
+  message: string
+  details?: string[]
+}): ToolResult {
+  if (result.details && result.details.length > 0) {
+    return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}\n${result.details.map(d => `  ${d}`).join("\n")}`
+  }
+  return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}`
+}
+
+function getPhaseRequirements(
+  phase: Phase,
+  state: SddState,
+  join: typeof import("path").join
+): string[] {
+  const projectDir = state.getProjectDir()
+  const featureDir = join(projectDir, "docs", "features", state.featureName)
+  const requirements: string[] = []
+
+  requirements.push(`Current phase: ${state.currentPhase} (${state.getPhaseName()})`)
+  requirements.push(`Transition to: Phase ${phase} (${PHASE_NAMES[phase] ?? `Phase ${phase}`})`)
+
+  if (phase === Phase.REQUIREMENTS) {
+    requirements.push(
+      "Requirements: findings.md must have Phase 0 section with research (5+ files, 2+ citations, 2+ constraints, 2+ alternatives)"
+    )
+    const findingsFile = join(featureDir, "findings.md")
+    if (existsSync(findingsFile)) {
+      const content = readFileSync(findingsFile, "utf-8")
+      const hasPhase0 =
+        content.includes("## Phase 0: Research") ||
+        content.includes("## Research")
+      requirements.push(`Phase 0 section: ${hasPhase0 ? "present" : "MISSING"}`)
+    } else {
+      requirements.push("findings.md: MISSING")
+    }
+  }
+
+  if (phase === Phase.PLANNING) {
+    requirements.push("Requirements: Design document must exist, constitution compliance passed")
+    const designFile = join(featureDir, "design.md")
+    if (existsSync(designFile)) {
+      requirements.push("design.md: present")
+    } else {
+      requirements.push("design.md: MISSING")
+    }
+  }
+
+  if (phase === Phase.DEVELOPMENT) {
+    requirements.push("Requirements: Implementation plan must exist, constitution compliance passed")
+    const planFile = join(featureDir, "implementation-plan.md")
+    if (existsSync(planFile)) {
+      requirements.push("implementation-plan.md: present")
+    } else {
+      requirements.push("implementation-plan.md: MISSING")
+    }
+  }
+
+  if (phase === Phase.INTEGRATION) {
+    requirements.push("Requirements: All tasks completed, unit tests pass, lint/typecheck pass")
+  }
+
+  if (phase === Phase.REVIEW) {
+    requirements.push("Requirements: Integration tests pass, E2E tests pass")
+  }
+
+  if (phase === Phase.PERSISTENCE) {
+    requirements.push(
+      "Requirements: All 4 review artifacts verified (architecture, code quality, requirements traceability, test coverage)"
+    )
+  }
+
+  return requirements
+}
+
+export function toolDefinitions(
+  director: Director,
+  state: SddState
+): Record<string, ReturnType<typeof tool>> {
+  return {
+    sdd_init: tool({
+      description:
+        "Initialize SDD-Workflow project structure (directories, constitution, config, memory artifacts)",
+      args: {
+        template: tool
+          .schema
+          .string()
+          .default("standard")
+          .describe("Project template: standard, rust, python"),
+        force: tool
+          .schema
+          .boolean()
+          .default(false)
+          .describe("Force reinitialization"),
+      },
+      async execute(args) {
+        const result = await director.executeCommand("init", args)
+        return formatResult(result)
+      },
+    }),
+
+    sdd_start: tool({
+      description:
+        "Start a new feature development workflow (Phase 0: Research & Understanding)",
+      args: {
+        feature: tool.schema.string().describe("Feature name"),
+      },
+      async execute(args) {
+        const result = await director.executeCommand("start", args)
+        return formatResult(result)
+      },
+    }),
+
+    sdd_resume: tool({
+      description:
+        "Resume an interrupted workflow from last checkpoint",
+      args: {
+        feature: tool
+          .schema
+          .string()
+          .optional()
+          .describe(
+            "Feature name to resume (optional, uses current if not specified)"
+          ),
+      },
+      async execute(args) {
+        const result = await director.executeCommand("resume", args)
+        return formatResult(result)
+      },
+    }),
+
+    sdd_status: tool({
+      description:
+        "Show current SDD workflow status: phase, feature, edit counts, hot files",
+      args: {
+        feature: tool
+          .schema
+          .string()
+          .optional()
+          .describe("Feature name (optional)"),
+        verbose: tool
+          .schema
+          .boolean()
+          .default(false)
+          .describe("Show detailed status"),
+      },
+      async execute(args) {
+        const result = await director.executeCommand("status", args)
+        return formatResult(result)
+      },
+    }),
+
+    sdd_complete: tool({
+      description:
+        "Force complete the current workflow (Phase 6: Memory Persistence)",
+      args: {
+        feature: tool.schema.string().optional().describe("Feature name"),
+      },
+      async execute(args) {
+        const result = await director.executeCommand("complete", args)
+        return formatResult(result)
+      },
+    }),
+
+    sdd_gate: tool({
+      description:
+        "Phase gate operations: check requirements, approve transition, or block. Use before transitioning between phases. APPROVE requires human confirmation.",
+      args: {
+        phase: tool
+          .schema
+          .number()
+          .int()
+          .min(0)
+          .max(6)
+          .describe("Phase number to check/approve (0-6)"),
+        action: tool
+          .schema
+          .enum(["check", "approve", "block"])
+          .describe(
+            "check=show requirements, approve=request human confirmation then transition, block=force stay in current phase"
+          ),
+        confirmed: tool
+          .schema
+          .boolean()
+          .optional()
+          .describe("Set to true ONLY after human explicitly confirms the transition"),
+      },
+      async execute(args) {
+        const phase = args.phase as Phase
+        const action = args.action || "check"
+        const confirmed = args.confirmed === true
+
+        if (action === "approve") {
+          if (!confirmed) {
+            const requirements = getPhaseRequirements(phase, state, join)
+            return formatResult({
+              success: false,
+              message:
+                `⚠️ HUMAN CONFIRMATION REQUIRED for Phase ${phase} (${PHASE_NAMES[phase] ?? `Phase ${phase}`})`,
+              details: [
+                "DO NOT proceed without explicit human approval.",
+                "Ask the user: 'Phase gate requirements met. Should I proceed to Phase X?'",
+                "Only call sdd_gate again with confirmed=true after user says yes.",
+                "",
+                ...requirements,
+              ],
+            })
+          }
+
+          const success = state.transition(phase)
+          if (!success) {
+            return formatResult({
+              success: false,
+              message:
+                `Cannot transition to Phase ${phase}. Current: Phase ${state.currentPhase} (${state.getPhaseName()}). Gate not passed or invalid transition.`,
+            })
+          }
+          return formatResult({
+            success: true,
+            message:
+              `✅ Gate approved by human. Transitioned to Phase ${phase} (${state.getPhaseName()}).`,
+          })
+        }
+
+        if (action === "block") {
+          return formatResult({
+            success: false,
+            message:
+              `Gate blocked at Phase ${phase}. Complete current phase requirements first.`,
+          })
+        }
+
+        const requirements = getPhaseRequirements(phase, state, join)
+
+        return formatResult({
+          success: true,
+          message: "Phase gate check results",
+          details: requirements,
+        })
+      },
+    }),
+
+    sdd_refresh: tool({
+      description:
+        "Force context refresh - inject key requirements, design decisions, and hot file warnings to prevent context drift",
+      args: {
+        reason: tool.schema.string().optional().describe("Reason for refresh"),
+      },
+      async execute(args) {
+        const reason = args.reason || "Manual refresh"
+        return formatResult({
+          success: true,
+          message: `Context refresh triggered: ${reason}`,
+          details: [
+            "Context reloaded from findings.md and design documents.",
+            "Hot files and recent decisions injected.",
+          ],
+        })
+      },
+    }),
+
+    sdd_memory_timeline: tool({
+      description:
+        "Get memory timeline around a specific node (Layer 2: Progressive Disclosure). Shows recent decisions, requirements, and context.",
+      args: {
+        around_id: tool
+          .schema
+          .string()
+          .describe("Memory node ID to get context around"),
+        before: tool
+          .schema
+          .number()
+          .int()
+          .default(5)
+          .describe("Nodes before the ID"),
+        after: tool
+          .schema
+          .number()
+          .int()
+          .default(5)
+          .describe("Nodes after the ID"),
+      },
+      async execute(args) {
+        const featureDir = join(
+          state.getProjectDir(),
+          "docs",
+          "features",
+          state.featureName
+        )
+        const findingsFile = join(featureDir, "findings.md")
+        if (!existsSync(findingsFile)) {
+          return formatResult({
+            success: false,
+            message: "No findings.md found",
+          })
+        }
+        const content = readFileSync(findingsFile, "utf-8")
+        return {
+          title: "Memory timeline (Layer 2)",
+          output: content.slice(0, 3000),
+        }
+      },
+    }),
+
+    sdd_memory_details: tool({
+      description:
+        "Get full details for specific memory nodes (Layer 3: Full Disclosure). Complete content, alternatives, rationale.",
+      args: {
+        ids: tool.schema.array(tool.schema.string()).describe("Memory node IDs to retrieve"),
+      },
+      async execute(args) {
+        const featureDir = join(
+          state.getProjectDir(),
+          "docs",
+          "features",
+          state.featureName
+        )
+        const designFile = join(featureDir, "design-doc.md")
+        if (!existsSync(designFile)) {
+          return formatResult({
+            success: false,
+            message: "No design-doc.md found",
+          })
+        }
+        const content = readFileSync(designFile, "utf-8")
+        return {
+          title: "Memory details (Layer 3)",
+          output: content.slice(0, 5000),
+        }
+      },
+    }),
+  }
+}

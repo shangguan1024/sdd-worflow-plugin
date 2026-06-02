@@ -1,0 +1,1 @@
+{"version":3,"file":"constitution.d.ts","sourceRoot":"","sources":["../../src/middleware/constitution.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAS,MAAM,UAAU,CAAA;AAI1C,UAAU,kBAAkB;IAC1B,OAAO,EAAE,OAAO,CAAA;IAChB,OAAO,CAAC,EAAE,MAAM,CAAA;CACjB;AAED,eAAO,MAAM,sBAAsB;iBAExB,MAAM,SACN,QAAQ,cACH,MAAM,GACjB,kBAAkB;CAiBtB,CAAA"}

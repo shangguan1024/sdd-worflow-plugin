@@ -1,0 +1,1 @@
+{"version":3,"file":"context-monitor.d.ts","sourceRoot":"","sources":["../../src/middleware/context-monitor.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,UAAU,CAAA;AAQnC,eAAO,MAAM,wBAAwB;yBAEvB,MAAM,QACV,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,SACtB,QAAQ,GACd,IAAI;yBAWc,QAAQ,GAAG,OAAO;2BAchB,QAAQ,cAAc,MAAM,GAAG,MAAM;CAoD7D,CAAA"}

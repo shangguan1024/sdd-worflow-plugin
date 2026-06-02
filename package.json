@@ -1,0 +1,49 @@
+{
+  "name": "sdd-workflow-plugin",
+  "version": "1.0.0",
+  "description": "SDD-Workflow plugin for opencode - 7-phase development lifecycle with mandatory phase gates",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "oc-plugin": ["server"],
+  "bin": {
+    "sdd": "./bin/sdd.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "README.md"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.14.20",
+    "@opencode-ai/sdk": "^1.14.20"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "sdd",
+    "workflow",
+    "phase-gate",
+    "cli"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"manager.d.ts","sourceRoot":"","sources":["../../src/memory/manager.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,kBAAkB,EAAE,MAAM,gBAAgB,CAAA;AAEnD,qBAAa,aAAa;IACxB,OAAO,CAAC,WAAW,CAAQ;IAC3B,OAAO,CAAC,MAAM,CAAkC;gBAEpC,WAAW,EAAE,MAAM;IAI/B,kBAAkB,CAAC,WAAW,EAAE,MAAM,GAAG,kBAAkB;IAuB3D,SAAS,IAAI,kBAAkB,GAAG,IAAI;IAItC,UAAU,CAAC,WAAW,EAAE,MAAM,GAAG,IAAI;CAYtC"}

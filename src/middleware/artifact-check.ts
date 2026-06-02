@@ -1,0 +1,63 @@
+import { SddState, Phase } from "../state.js"
+import { existsSync } from "fs"
+import { join } from "path"
+
+interface ArtifactResult {
+  allowed: boolean
+  message?: string
+  missing?: string[]
+}
+
+const REQUIRED_REVIEW_ARTIFACTS = [
+  "docs/features/{feature}/reviews/architecture_review.md",
+  "docs/features/{feature}/reviews/code_quality_review.md",
+]
+
+const REQUIRED_MEMORY_ARTIFACTS = ["PROJECT_STATE.md", "AGENTS.md"]
+
+export const artifactCheckMiddleware = {
+  check(
+    phase: number,
+    state: SddState,
+    projectDir: string
+  ): ArtifactResult {
+    if (phase === Phase.REVIEW || phase === Phase.PERSISTENCE) {
+      const missing: string[] = []
+
+      for (const pattern of REQUIRED_REVIEW_ARTIFACTS) {
+        const path = pattern.replace("{feature}", state.featureName)
+        if (!existsSync(join(projectDir, path))) {
+          missing.push(path)
+        }
+      }
+
+      if (missing.length > 0) {
+        return {
+          allowed: false,
+          message: `Missing ${missing.length} review artifacts: ${missing.join(", ")}`,
+          missing,
+        }
+      }
+    }
+
+    if (phase === Phase.PERSISTENCE) {
+      const missing: string[] = []
+
+      for (const artifact of REQUIRED_MEMORY_ARTIFACTS) {
+        if (!existsSync(join(projectDir, artifact))) {
+          missing.push(artifact)
+        }
+      }
+
+      if (missing.length > 0) {
+        return {
+          allowed: false,
+          message: `Missing memory artifacts: ${missing.join(", ")}`,
+          missing,
+        }
+      }
+    }
+
+    return { allowed: true }
+  },
+}

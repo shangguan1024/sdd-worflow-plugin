@@ -1,0 +1,1 @@
+{"version":3,"file":"artifact-check.d.ts","sourceRoot":"","sources":["../../src/middleware/artifact-check.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAS,MAAM,UAAU,CAAA;AAI1C,UAAU,cAAc;IACtB,OAAO,EAAE,OAAO,CAAA;IAChB,OAAO,CAAC,EAAE,MAAM,CAAA;IAChB,OAAO,CAAC,EAAE,MAAM,EAAE,CAAA;CACnB;AASD,eAAO,MAAM,uBAAuB;iBAEzB,MAAM,SACN,QAAQ,cACH,MAAM,GACjB,cAAc;CAwClB,CAAA"}
