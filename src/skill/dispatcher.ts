@@ -29,9 +29,12 @@ export class SkillDispatcher {
   }
 
   dispatchForPhase(phase: number): SkillDispatchResult {
-    const allSkills = this.configLoader.getAllSkills(phase)
+    const primarySkills = this.configLoader.getSkills(phase)
+    const additionalSkills = this.configLoader.getAdditionalSkills(phase)
     const invokeMode = this.configLoader.getSkillInvokeMode(phase)
     const phaseConfig = this.configLoader.getPhaseConfig(phase)
+
+    const allSkills = [...primarySkills, ...additionalSkills].filter(s => s && s.length > 0)
 
     if (allSkills.length === 0) {
       return {
@@ -42,14 +45,22 @@ export class SkillDispatcher {
       }
     }
 
-    const skills: SkillInvocation[] = allSkills.map((name, index) => ({
-      name,
-      order: index,
-      mode: index === 0 ? "primary" : "additional",
-      invoke_timing: invokeMode as SkillInvocation["invoke_timing"],
-    }))
+    const skills: SkillInvocation[] = [
+      ...primarySkills.map((name, index) => ({
+        name,
+        order: index,
+        mode: "primary" as const,
+        invoke_timing: invokeMode as SkillInvocation["invoke_timing"],
+      })),
+      ...additionalSkills.map((name, index) => ({
+        name,
+        order: primarySkills.length + index,
+        mode: "additional" as const,
+        invoke_timing: invokeMode as SkillInvocation["invoke_timing"],
+      })),
+    ]
 
-    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig)
+    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig, primarySkills, additionalSkills)
 
     return {
       success: true,
@@ -70,7 +81,7 @@ export class SkillDispatcher {
       invoke_timing: "during_phase",
     }]
 
-    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig)
+    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig, [skillName], [])
 
     return {
       success: true,
@@ -91,46 +102,50 @@ export class SkillDispatcher {
   private generateSkillChainInstruction(
     skills: SkillInvocation[],
     phase: number,
-    phaseConfig?: PhaseConfig
+    phaseConfig?: PhaseConfig,
+    primarySkills: string[] = [],
+    additionalSkills: string[] = []
   ): string {
-    const primarySkill = skills.find((s) => s.mode === "primary")
-    const additionalSkills = skills.filter((s) => s.mode === "additional")
+    const invokeTiming = skills[0]?.invoke_timing ?? "pre_phase"
 
     let instruction = `
 ## ⚠️ MANDATORY Skill Chain for Phase ${phase} (${phaseConfig?.name ?? `Phase ${phase}`})
 
-**Primary Skill**: ${primarySkill?.name ?? "None"}
-${additionalSkills.length > 0 ? `**Additional Skills**: ${additionalSkills.map((s) => s.name).join(", ")}` : "**Additional Skills**: None"}
+**Primary Skills**: ${primarySkills.length > 0 ? primarySkills.join(", ") : "None"}
+**Additional Skills**: ${additionalSkills.length > 0 ? additionalSkills.join(", ") : "None"}
 
-### Invoke Timing: ${primarySkill?.invoke_timing ?? "pre_phase"}
+### Invoke Timing: ${invokeTiming}
 
 You MUST invoke these skills according to the timing below. This is NOT optional.
 
 `
 
-    if (primarySkill?.invoke_timing === "pre_phase") {
+    if (invokeTiming === "pre_phase") {
       instruction += `
 ### 🚨 REQUIRED ACTION NOW
 
 You MUST execute the following skill invocations IMMEDIATELY before starting Phase ${phase} tasks:
 
-**Step 1 - Invoke Primary Skill (REQUIRED)**:
+`
+      if (primarySkills.length > 0) {
+        instruction += `**Step 1 - Invoke Primary Skills (REQUIRED)**:
 \`\`\`
-skill("${primarySkill?.name}")
+${primarySkills.map(s => `skill("${s}")`).join("\n")}
 \`\`\`
 
 `
+      }
       if (additionalSkills.length > 0) {
         instruction += `**Step 2 - Invoke Additional Skills (REQUIRED)**:
-After primary skill completes, you MUST invoke:
+After primary skills complete, you MUST invoke:
 \`\`\`
-${additionalSkills.map((s) => `skill("${s.name}")`).join("\n")}
+${additionalSkills.map(s => `skill("${s}")`).join("\n")}
 \`\`\`
 
 `
       }
       instruction += `**Do NOT proceed with Phase ${phase} tasks until ALL skills above are invoked.**`
-    } else if (primarySkill?.invoke_timing === "pre_gate") {
+    } else if (invokeTiming === "pre_gate") {
       instruction += `
 ### 🚨 REQUIRED ACTION BEFORE GATE
 
@@ -138,12 +153,13 @@ After completing Phase ${phase} tasks, you MUST invoke skill chain BEFORE callin
 
 **Required Skill Invocations**:
 \`\`\`
-${skills.map((s) => `skill("${s.name}")`).join("\n")}
+${primarySkills.map(s => `skill("${s}")`).join("\n")}
+${additionalSkills.map(s => `skill("${s}")`).join("\n")}
 sdd_gate phase=${phase + 1} action=check
 \`\`\`
 
 **Do NOT call sdd_gate until ALL skills above are invoked.**`
-    } else if (primarySkill?.invoke_timing === "during_phase") {
+    } else if (invokeTiming === "during_phase") {
       instruction += `
 ### 🚨 REQUIRED ACTION DURING PHASE
 
@@ -151,28 +167,26 @@ During Phase ${phase} execution, you MUST invoke skills when appropriate:
 
 **When you encounter a situation matching skill purpose, invoke IMMEDIATELY**:
 \`\`\`
-skill("${primarySkill?.name}")
+${primarySkills.map(s => `skill("${s}")`).join("\n")}
+${additionalSkills.map(s => `skill("${s}")`).join("\n")}
 \`\`\`
-
 `
-      if (additionalSkills.length > 0) {
-        instruction += `${additionalSkills.map((s) => `skill("${s.name}")`).join("\n")}
-`
-      }
     }
 
     instruction += `
 
 ### Skill Purpose Reference
 
-| Skill | When to Invoke | Purpose |
-|-------|----------------|---------|
-${skills.map((s) => `| ${s.name} | ${this.getInvokeWhen(s.invoke_timing)} | ${this.getSkillPurpose(s.name)} |`).join("\n")}
+| Skill | Type | When to Invoke | Purpose |
+|-------|------|----------------|---------|
+${primarySkills.map(s => `| ${s} | Primary | ${this.getInvokeWhen(invokeTiming)} | ${this.getSkillPurpose(s)} |`).join("\n")}
+${additionalSkills.map(s => `| ${s} | Additional | ${this.getInvokeWhen(invokeTiming)} | ${this.getSkillPurpose(s)} |`).join("\n")}
 
 ### ⚠️ REMINDER
-- Skills are loaded via configuration (.sdd/workflow_config.json)
+- Primary skills: configured in workflow_config.json as \`skills: []\`
+- Additional skills: configured as \`additional_skills: []\`
 - Plugin does NOT hardcode skill names
-- You MUST invoke skills as instructed above
+- You MUST invoke ALL skills as instructed above
 - After skill chain: continue tasks → sdd_gate → wait for approval
 `
 

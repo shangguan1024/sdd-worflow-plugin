@@ -7,6 +7,7 @@ export interface PhaseConfig {
   blocked_tools: string[]
   allowed_tools: string[]
   skill?: string
+  skills?: string[]
   additional_skills?: string[]
   skill_invoke_mode?: "pre_phase" | "during_phase" | "pre_gate" | "post_gate"
   required_files: string[]
@@ -34,7 +35,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Research & Understanding",
       blocked_tools: ["edit", "write", "bash"],
       allowed_tools: ["read", "glob", "grep"],
-      skill: "comprehensive-research-agent",
+      skills: ["comprehensive-research-agent"],
       additional_skills: [],
       skill_invoke_mode: "pre_phase",
       required_files: ["findings.md"],
@@ -51,7 +52,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Requirements & Design",
       blocked_tools: ["bash"],
       allowed_tools: ["read", "glob", "grep", "edit", "write"],
-      skill: "brainstorming",
+      skills: ["brainstorming"],
       additional_skills: [],
       skill_invoke_mode: "pre_phase",
       required_files: ["findings.md", "design.md"],
@@ -66,7 +67,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Implementation Planning",
       blocked_tools: [],
       allowed_tools: ["all"],
-      skill: "writing-plans",
+      skills: ["writing-plans"],
       additional_skills: [],
       skill_invoke_mode: "pre_phase",
       required_files: ["task_plan.md"],
@@ -78,7 +79,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Module Development",
       blocked_tools: [],
       allowed_tools: ["all"],
-      skill: "subagent-driven-development",
+      skills: ["subagent-driven-development"],
       additional_skills: ["code-review-quality"],
       skill_invoke_mode: "pre_gate",
       required_files: ["task_plan.md"],
@@ -90,7 +91,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Integration & Testing",
       blocked_tools: [],
       allowed_tools: ["all"],
-      skill: "verification-before-completion",
+      skills: ["verification-before-completion"],
       additional_skills: [],
       skill_invoke_mode: "pre_phase",
       required_files: ["findings.md"],
@@ -102,7 +103,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Code Quality Review",
       blocked_tools: [],
       allowed_tools: ["all"],
-      skill: "requesting-code-review",
+      skills: ["requesting-code-review"],
       additional_skills: ["code-review-quality"],
       skill_invoke_mode: "pre_gate",
       required_files: [
@@ -117,7 +118,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       name: "Memory Persistence",
       blocked_tools: [],
       allowed_tools: ["all"],
-      skill: "memory-systems",
+      skills: ["memory-systems"],
       additional_skills: [],
       skill_invoke_mode: "pre_phase",
       required_files: ["PROJECT_STATE.md", "AGENTS.md"],
@@ -184,10 +185,11 @@ export class ConfigLoader {
       for (const userPhase of userConfig.phases) {
         const defaultPhase = defaultConfig.phases.find(p => p.id === userPhase.id)
         if (defaultPhase) {
+          const mergedSkills = this.mergeSkills(defaultPhase, userPhase)
           const mergedPhase: PhaseConfig = {
             ...defaultPhase,
             ...userPhase,
-            skill: defaultPhase.skill,
+            skills: mergedSkills,
             additional_skills: userPhase.additional_skills ?? defaultPhase.additional_skills,
           }
           const index = merged.phases.findIndex(p => p.id === userPhase.id)
@@ -205,6 +207,20 @@ export class ConfigLoader {
     return merged
   }
 
+  private mergeSkills(defaultPhase: PhaseConfig, userPhase: Partial<PhaseConfig>): string[] {
+    const defaultSkills = defaultPhase.skills ?? []
+    
+    if (userPhase.skills && Array.isArray(userPhase.skills)) {
+      return userPhase.skills
+    }
+    
+    if (userPhase.skill && typeof userPhase.skill === "string") {
+      return [userPhase.skill]
+    }
+    
+    return defaultSkills
+  }
+
   getConfig(): WorkflowConfig {
     return this.config
   }
@@ -220,7 +236,13 @@ export class ConfigLoader {
 
   getSkill(phaseId: number): string | undefined {
     const phase = this.getPhaseConfig(phaseId)
-    return phase?.skill
+    const skills = phase?.skills ?? []
+    return skills.length > 0 ? skills[0] : undefined
+  }
+
+  getSkills(phaseId: number): string[] {
+    const phase = this.getPhaseConfig(phaseId)
+    return phase?.skills ?? []
   }
 
   getAdditionalSkills(phaseId: number): string[] {
@@ -234,9 +256,9 @@ export class ConfigLoader {
   }
 
   getAllSkills(phaseId: number): string[] {
-    const primary = this.getSkill(phaseId)
+    const primary = this.getSkills(phaseId)
     const additional = this.getAdditionalSkills(phaseId)
-    const all = primary ? [primary, ...additional] : additional
+    const all = [...primary, ...additional]
     return all.filter((s) => s && s.length > 0)
   }
 
