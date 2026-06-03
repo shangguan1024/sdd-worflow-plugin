@@ -254,7 +254,7 @@ export function toolDefinitions(director, state) {
                 const phase = args.phase !== undefined ? args.phase : state.currentPhase;
                 configLoader.reload();
                 if (skillName) {
-                    const result = skillDispatcher.dispatchSkill(skillName, args.args);
+                    const result = skillDispatcher.dispatchSkill(skillName);
                     return `${formatResult(result)}\n\n${result.instruction}`;
                 }
                 const result = skillDispatcher.dispatchForPhase(phase);

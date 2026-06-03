@@ -308,7 +308,7 @@ export function toolDefinitions(
         configLoader.reload()
         
         if (skillName) {
-          const result = skillDispatcher.dispatchSkill(skillName, args.args as Record<string, unknown>)
+          const result = skillDispatcher.dispatchSkill(skillName)
           return `${formatResult(result)}\n\n${result.instruction}`
         }
         

@@ -9,7 +9,7 @@ export interface PhaseConfig {
   skill?: string
   skills?: string[]
   additional_skills?: string[]
-  skill_invoke_mode?: "pre_phase" | "during_phase" | "pre_gate" | "post_gate"
+  allowed_tools_paths?: string[]
   required_files: string[]
   required_sections: string[]
   gate_requirements: string[]
@@ -24,20 +24,19 @@ export interface WorkflowConfig {
     edit_hard_limit: number
     refresh_interval: number
   }
-  skill_invoke_modes?: Record<string, string>
 }
 
 const DEFAULT_CONFIG: WorkflowConfig = {
-  version: "2.5",
+  version: "3.0",
   phases: [
     {
       id: 0,
       name: "Research & Understanding",
-      blocked_tools: ["edit", "write", "bash"],
-      allowed_tools: ["read", "glob", "grep"],
+      blocked_tools: ["edit", "bash"],
+      allowed_tools: ["read", "glob", "grep", "write"],
       skills: ["comprehensive-research-agent"],
       additional_skills: [],
-      skill_invoke_mode: "pre_phase",
+      allowed_tools_paths: ["docs/features/{feature}/"],
       required_files: ["findings.md"],
       required_sections: ["## Phase 0: Research"],
       gate_requirements: [
@@ -54,7 +53,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["read", "glob", "grep", "edit", "write"],
       skills: ["brainstorming"],
       additional_skills: [],
-      skill_invoke_mode: "pre_phase",
+      allowed_tools_paths: ["docs/features/{feature}/"],
       required_files: ["findings.md", "design.md"],
       required_sections: ["## Phase 1: Design Summary"],
       gate_requirements: [
@@ -69,7 +68,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["all"],
       skills: ["writing-plans"],
       additional_skills: [],
-      skill_invoke_mode: "pre_phase",
+      allowed_tools_paths: ["docs/features/{feature}/"],
       required_files: ["task_plan.md"],
       required_sections: ["## Phase 2: Plan Summary"],
       gate_requirements: ["Implementation plan exists"],
@@ -81,7 +80,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["all"],
       skills: ["subagent-driven-development"],
       additional_skills: ["code-review-quality"],
-      skill_invoke_mode: "pre_gate",
+      allowed_tools_paths: [],
       required_files: ["task_plan.md"],
       required_sections: ["## Phase 3: Implementation Summary"],
       gate_requirements: ["All tasks completed", "Unit tests pass"],
@@ -93,7 +92,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["all"],
       skills: ["verification-before-completion"],
       additional_skills: [],
-      skill_invoke_mode: "pre_phase",
+      allowed_tools_paths: [],
       required_files: ["findings.md"],
       required_sections: ["## Phase 4: Test Summary"],
       gate_requirements: ["Integration tests pass", "E2E tests pass"],
@@ -105,7 +104,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["all"],
       skills: ["requesting-code-review"],
       additional_skills: ["code-review-quality"],
-      skill_invoke_mode: "pre_gate",
+      allowed_tools_paths: ["docs/features/{feature}/reviews/"],
       required_files: [
         "reviews/architecture_review.md",
         "reviews/code_quality_review.md",
@@ -120,7 +119,7 @@ const DEFAULT_CONFIG: WorkflowConfig = {
       allowed_tools: ["all"],
       skills: ["memory-systems"],
       additional_skills: [],
-      skill_invoke_mode: "pre_phase",
+      allowed_tools_paths: [],
       required_files: ["PROJECT_STATE.md", "AGENTS.md"],
       required_sections: [],
       gate_requirements: ["All memory artifacts exist"],
@@ -139,12 +138,6 @@ const DEFAULT_CONFIG: WorkflowConfig = {
     edit_warning: 5,
     edit_hard_limit: 15,
     refresh_interval: 20,
-  },
-  skill_invoke_modes: {
-    pre_phase: "Invoke before phase execution",
-    during_phase: "Invoke during phase execution",
-    pre_gate: "Invoke before gate check",
-    post_gate: "Invoke after gate approval",
   },
 }
 
@@ -251,8 +244,12 @@ export class ConfigLoader {
   }
 
   getSkillInvokeMode(phaseId: number): string {
+    return "pre_phase"
+  }
+
+  getAllowedToolsPaths(phaseId: number): string[] {
     const phase = this.getPhaseConfig(phaseId)
-    return phase?.skill_invoke_mode ?? "pre_phase"
+    return phase?.allowed_tools_paths ?? []
   }
 
   getAllSkills(phaseId: number): string[] {

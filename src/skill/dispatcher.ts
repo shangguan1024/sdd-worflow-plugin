@@ -1,4 +1,4 @@
-import { ConfigLoader, PhaseConfig } from "../config/loader.js"
+import { ConfigLoader } from "../config/loader.js"
 import { SddState } from "../state.js"
 
 export interface SkillDispatchResult {
@@ -10,9 +10,19 @@ export interface SkillDispatchResult {
 
 export interface SkillInvocation {
   name: string
-  order: number
   mode: "primary" | "additional"
-  invoke_timing: "pre_phase" | "during_phase" | "pre_gate" | "post_gate"
+  description: string
+}
+
+const SKILL_DESCRIPTIONS: Record<string, string> = {
+  "comprehensive-research-agent": "Deep research with error recovery, cross-validation, and source tracking",
+  "brainstorming": "Design exploration before implementation, collaborative requirement refinement",
+  "writing-plans": "Implementation planning with task decomposition",
+  "subagent-driven-development": "Parallel module development with independent tasks",
+  "verification-before-completion": "Testing verification before claiming completion",
+  "requesting-code-review": "Code review request with quality assessment",
+  "memory-systems": "Cross-session knowledge persistence and memory architecture",
+  "code-review-quality": "Context-driven code quality review, focusing on testability and maintainability",
 }
 
 export class SkillDispatcher {
@@ -31,57 +41,51 @@ export class SkillDispatcher {
   dispatchForPhase(phase: number): SkillDispatchResult {
     const primarySkills = this.configLoader.getSkills(phase)
     const additionalSkills = this.configLoader.getAdditionalSkills(phase)
-    const invokeMode = this.configLoader.getSkillInvokeMode(phase)
     const phaseConfig = this.configLoader.getPhaseConfig(phase)
 
-    const allSkills = [...primarySkills, ...additionalSkills].filter(s => s && s.length > 0)
-
-    if (allSkills.length === 0) {
+    if (primarySkills.length === 0) {
       return {
         success: false,
-        message: `No skills configured for Phase ${phase}`,
+        message: `No primary skill configured for Phase ${phase}`,
         skills: [],
         instruction: "",
       }
     }
 
     const skills: SkillInvocation[] = [
-      ...primarySkills.map((name, index) => ({
+      ...primarySkills.map(name => ({
         name,
-        order: index,
         mode: "primary" as const,
-        invoke_timing: invokeMode as SkillInvocation["invoke_timing"],
+        description: this.getSkillDescription(name),
       })),
-      ...additionalSkills.map((name, index) => ({
+      ...additionalSkills.map(name => ({
         name,
-        order: primarySkills.length + index,
         mode: "additional" as const,
-        invoke_timing: invokeMode as SkillInvocation["invoke_timing"],
+        description: this.getSkillDescription(name),
       })),
     ]
 
-    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig, primarySkills, additionalSkills)
+    const instruction = this.generateInstruction(phase, phaseConfig, skills)
 
     return {
       success: true,
-      message: `${allSkills.length} skills ready for Phase ${phase}`,
+      message: `${skills.length} skills ready for Phase ${phase}`,
       skills,
       instruction,
     }
   }
 
-  dispatchSkill(skillName: string, args?: Record<string, unknown>): SkillDispatchResult {
+  dispatchSkill(skillName: string): SkillDispatchResult {
     const phase = this.state.currentPhase
     const phaseConfig = this.configLoader.getPhaseConfig(phase)
 
     const skills: SkillInvocation[] = [{
       name: skillName,
-      order: 0,
       mode: "primary",
-      invoke_timing: "during_phase",
+      description: this.getSkillDescription(skillName),
     }]
 
-    const instruction = this.generateSkillChainInstruction(skills, phase, phaseConfig, [skillName], [])
+    const instruction = this.generateInstruction(phase, phaseConfig, skills)
 
     return {
       success: true,
@@ -99,121 +103,50 @@ export class SkillDispatcher {
     return this.configLoader.getAdditionalSkills(this.state.currentPhase)
   }
 
-  private generateSkillChainInstruction(
-    skills: SkillInvocation[],
+  private generateInstruction(
     phase: number,
-    phaseConfig?: PhaseConfig,
-    primarySkills: string[] = [],
-    additionalSkills: string[] = []
+    phaseConfig: { name?: string },
+    skills: SkillInvocation[]
   ): string {
-    const invokeTiming = skills[0]?.invoke_timing ?? "pre_phase"
+    const primarySkills = skills.filter(s => s.mode === "primary")
+    const additionalSkills = skills.filter(s => s.mode === "additional")
+    const phaseName = phaseConfig?.name ?? `Phase ${phase}`
 
     let instruction = `
-## ⚠️ MANDATORY Skill Chain for Phase ${phase} (${phaseConfig?.name ?? `Phase ${phase}`})
+⚠️ MANDATORY - 不可跳过:
 
-**Primary Skills**: ${primarySkills.length > 0 ? primarySkills.join(", ") : "None"}
-**Additional Skills**: ${additionalSkills.length > 0 ? additionalSkills.join(", ") : "None"}
+Step 1: 读取sdd-workflow skill文档
+  → ~/.config/opencode/skills/sdd-workflow/phases-reference.md
+  → 读取Phase ${phase} section
+  → 知道要做什么、Gate要求什么、产出格式是什么
 
-### Invoke Timing: ${invokeTiming}
+Step 2: 调Primary skill
+  → ${primarySkills.map(s => `skill("${s.name}")`).join("\n  → ")}
+  → ${primarySkills.map(s => s.description).join("\n  → ")}
 
-You MUST invoke these skills according to the timing below. This is NOT optional.
+⚠️ 顺序不可颠倒：先看说明书，再拿工具干活
+⚠️ 不要跳过Step 1直接调skill，否则不知道Phase的具体要求
 
+Step 3: 执行Phase任务
+  → 按phases-reference.md的Phase ${phase} section指导执行
+
+Step 4: Gate检查
+  → sdd_gate phase=${phase + 1} action=check
+  → sdd_gate phase=${phase + 1} action=approve (需用户确认)
 `
 
-    if (invokeTiming === "pre_phase") {
+    if (additionalSkills.length > 0) {
       instruction += `
-### 🚨 REQUIRED ACTION NOW
+📋 Available additional skills (可选, 自行判断调用时机):
 
-You MUST execute the following skill invocations IMMEDIATELY before starting Phase ${phase} tasks:
-
-`
-      if (primarySkills.length > 0) {
-        instruction += `**Step 1 - Invoke Primary Skills (REQUIRED)**:
-\`\`\`
-${primarySkills.map(s => `skill("${s}")`).join("\n")}
-\`\`\`
-
-`
-      }
-      if (additionalSkills.length > 0) {
-        instruction += `**Step 2 - Invoke Additional Skills (REQUIRED)**:
-After primary skills complete, you MUST invoke:
-\`\`\`
-${additionalSkills.map(s => `skill("${s}")`).join("\n")}
-\`\`\`
-
-`
-      }
-      instruction += `**Do NOT proceed with Phase ${phase} tasks until ALL skills above are invoked.**`
-    } else if (invokeTiming === "pre_gate") {
-      instruction += `
-### 🚨 REQUIRED ACTION BEFORE GATE
-
-After completing Phase ${phase} tasks, you MUST invoke skill chain BEFORE calling sdd_gate:
-
-**Required Skill Invocations**:
-\`\`\`
-${primarySkills.map(s => `skill("${s}")`).join("\n")}
-${additionalSkills.map(s => `skill("${s}")`).join("\n")}
-sdd_gate phase=${phase + 1} action=check
-\`\`\`
-
-**Do NOT call sdd_gate until ALL skills above are invoked.**`
-    } else if (invokeTiming === "during_phase") {
-      instruction += `
-### 🚨 REQUIRED ACTION DURING PHASE
-
-During Phase ${phase} execution, you MUST invoke skills when appropriate:
-
-**When you encounter a situation matching skill purpose, invoke IMMEDIATELY**:
-\`\`\`
-${primarySkills.map(s => `skill("${s}")`).join("\n")}
-${additionalSkills.map(s => `skill("${s}")`).join("\n")}
-\`\`\`
+${additionalSkills.map(s => `- ${s.name}\n  功能: ${s.description}\n  建议: 需要时调用, 无固定时机`).join("\n\n")}
 `
     }
-
-    instruction += `
-
-### Skill Purpose Reference
-
-| Skill | Type | When to Invoke | Purpose |
-|-------|------|----------------|---------|
-${primarySkills.map(s => `| ${s} | Primary | ${this.getInvokeWhen(invokeTiming)} | ${this.getSkillPurpose(s)} |`).join("\n")}
-${additionalSkills.map(s => `| ${s} | Additional | ${this.getInvokeWhen(invokeTiming)} | ${this.getSkillPurpose(s)} |`).join("\n")}
-
-### ⚠️ REMINDER
-- Primary skills: configured in workflow_config.json as \`skills: []\`
-- Additional skills: configured as \`additional_skills: []\`
-- Plugin does NOT hardcode skill names
-- You MUST invoke ALL skills as instructed above
-- After skill chain: continue tasks → sdd_gate → wait for approval
-`
 
     return instruction
   }
 
-  private getInvokeWhen(timing: string): string {
-    const timingMap: Record<string, string> = {
-      "pre_phase": "Before phase starts",
-      "during_phase": "During execution (as needed)",
-      "pre_gate": "Before gate check",
-      "post_gate": "After gate approval",
-    }
-    return timingMap[timing] ?? "As configured"
-  }
-
-  private getSkillPurpose(skillName: string): string {
-    const purposes: Record<string, string> = {
-      "comprehensive-research-agent": "Deep research with error recovery",
-      "brainstorming": "Design exploration before implementation",
-      "writing-plans": "Implementation planning",
-      "subagent-driven-development": "Parallel module development",
-      "verification-before-completion": "Testing verification",
-      "requesting-code-review": "Code review request",
-      "memory-systems": "Persistence architecture",
-      "code-review-quality": "Code quality and best practices check",
-    }
-    return purposes[skillName] ?? "Custom skill"
+  getSkillDescription(skillName: string): string {
+    return SKILL_DESCRIPTIONS[skillName] ?? "Custom skill"
   }
 }
