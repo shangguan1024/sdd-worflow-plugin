@@ -11,6 +11,7 @@ export declare class Director {
     private gateChecker;
     private phaseOrchestrator;
     private configLoader;
+    private rollbackHandler;
     constructor(projectDir: string, state: SddState);
     executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult>;
     private initialize;
@@ -22,5 +23,6 @@ export declare class Director {
     checkGateRequirements(phase: number): CommandResult;
     private refreshContext;
     private dispatchSkill;
+    private rollbackOperation;
     private listActiveFeatures;
 }

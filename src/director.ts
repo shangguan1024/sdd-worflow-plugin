@@ -3,6 +3,7 @@ import { ProjectInitializer } from "./project/initializer.js"
 import { GateChecker } from "./gate/checker.js"
 import { PhaseOrchestrator } from "./phase/orchestrator.js"
 import { ConfigLoader } from "./config/loader.js"
+import { RollbackHandler } from "./rollback/handler.js"
 import { join } from "path"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs"
 
@@ -19,6 +20,7 @@ export class Director {
   private gateChecker: GateChecker
   private phaseOrchestrator: PhaseOrchestrator
   private configLoader: ConfigLoader
+  private rollbackHandler: RollbackHandler
 
   constructor(projectDir: string, state: SddState) {
     this.projectDir = projectDir
@@ -27,6 +29,7 @@ export class Director {
     this.configLoader = new ConfigLoader(projectDir)
     this.gateChecker = new GateChecker(state, this.configLoader, projectDir)
     this.phaseOrchestrator = new PhaseOrchestrator(state, this.configLoader, projectDir)
+    this.rollbackHandler = new RollbackHandler(state, projectDir)
   }
 
   async executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult> {
@@ -50,8 +53,14 @@ export class Director {
         return this.refreshContext(parts[1] || (args.reason as string) || "Manual refresh")
       case "dispatch-skill":
         return this.dispatchSkill(args.skill_name as string, args.args as Record<string, unknown>)
+      case "rollback":
+        return this.rollbackOperation(
+          parseInt(parts[1] ?? String(args.target_phase ?? this.state.currentPhase)),
+          (parts[2] ?? args.code_scope as string) ?? "related",
+          args.confirmed as boolean ?? false
+        )
       default:
-        return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh, dispatch-skill` }
+        return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh, dispatch-skill, rollback` }
     }
   }
 
@@ -318,6 +327,28 @@ export class Director {
         `Args: ${JSON.stringify(args ?? {})}`,
       ],
     }
+  }
+
+  private rollbackOperation(targetPhase: number, codeScope: string, confirmed: boolean): CommandResult {
+    if (!this.state.featureName) {
+      return { success: false, message: "No active feature. Use sdd start <feature> first." }
+    }
+
+    if (targetPhase > this.state.currentPhase) {
+      return { success: false, message: `Cannot rollback forward. Target Phase ${targetPhase} >= current Phase ${this.state.currentPhase}.` }
+    }
+
+    if (targetPhase < 0 || targetPhase > 6) {
+      return { success: false, message: `Invalid target phase: ${targetPhase}. Must be 0-6.` }
+    }
+
+    const validScopes = ["none", "related", "all"]
+    if (!validScopes.includes(codeScope)) {
+      return { success: false, message: `Invalid code_scope: '${codeScope}'. Must be: ${validScopes.join(", ")}` }
+    }
+
+    const result = this.rollbackHandler.executeRollback(targetPhase, codeScope, confirmed)
+    return { success: result.success, message: result.message, details: result.details }
   }
 
   private listActiveFeatures(): string[] {

@@ -3,6 +3,7 @@ import { ProjectInitializer } from "./project/initializer.js";
 import { GateChecker } from "./gate/checker.js";
 import { PhaseOrchestrator } from "./phase/orchestrator.js";
 import { ConfigLoader } from "./config/loader.js";
+import { RollbackHandler } from "./rollback/handler.js";
 import { join } from "path";
 import { existsSync, readFileSync, readdirSync } from "fs";
 export class Director {
@@ -12,6 +13,7 @@ export class Director {
     gateChecker;
     phaseOrchestrator;
     configLoader;
+    rollbackHandler;
     constructor(projectDir, state) {
         this.projectDir = projectDir;
         this.state = state;
@@ -19,6 +21,7 @@ export class Director {
         this.configLoader = new ConfigLoader(projectDir);
         this.gateChecker = new GateChecker(state, this.configLoader, projectDir);
         this.phaseOrchestrator = new PhaseOrchestrator(state, this.configLoader, projectDir);
+        this.rollbackHandler = new RollbackHandler(state, projectDir);
     }
     async executeCommand(cmd, args) {
         const parts = cmd.split(/\s+/);
@@ -40,8 +43,10 @@ export class Director {
                 return this.refreshContext(parts[1] || args.reason || "Manual refresh");
             case "dispatch-skill":
                 return this.dispatchSkill(args.skill_name, args.args);
+            case "rollback":
+                return this.rollbackOperation(parseInt(parts[1] ?? String(args.target_phase ?? this.state.currentPhase)), (parts[2] ?? args.code_scope) ?? "related", args.confirmed ?? false);
             default:
-                return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh, dispatch-skill` };
+                return { success: false, message: `Unknown command: ${command}. Available: init, start, resume, status, complete, gate, refresh, dispatch-skill, rollback` };
         }
     }
     initialize(args) {
@@ -280,6 +285,23 @@ export class Director {
                 `Args: ${JSON.stringify(args ?? {})}`,
             ],
         };
+    }
+    rollbackOperation(targetPhase, codeScope, confirmed) {
+        if (!this.state.featureName) {
+            return { success: false, message: "No active feature. Use sdd start <feature> first." };
+        }
+        if (targetPhase > this.state.currentPhase) {
+            return { success: false, message: `Cannot rollback forward. Target Phase ${targetPhase} >= current Phase ${this.state.currentPhase}.` };
+        }
+        if (targetPhase < 0 || targetPhase > 6) {
+            return { success: false, message: `Invalid target phase: ${targetPhase}. Must be 0-6.` };
+        }
+        const validScopes = ["none", "related", "all"];
+        if (!validScopes.includes(codeScope)) {
+            return { success: false, message: `Invalid code_scope: '${codeScope}'. Must be: ${validScopes.join(", ")}` };
+        }
+        const result = this.rollbackHandler.executeRollback(targetPhase, codeScope, confirmed);
+        return { success: result.success, message: result.message, details: result.details };
     }
     listActiveFeatures() {
         const featuresDir = join(this.projectDir, "docs", "features");

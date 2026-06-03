@@ -2,6 +2,7 @@ import { Phase, SddState } from "../state.js"
 import { ConfigLoader } from "../config/loader.js"
 import { existsSync, mkdirSync, writeFileSync } from "fs"
 import { join } from "path"
+import { execSync } from "child_process"
 
 export interface TransitionResult {
   success: boolean
@@ -122,6 +123,10 @@ export class PhaseOrchestrator {
   private writeCheckpoint(featureName: string): void {
     const checkpointDir = join(this.projectDir, "docs", "features", featureName, ".sdd")
     mkdirSync(checkpointDir, { recursive: true })
+    let gitSha: string | undefined
+    try {
+      gitSha = execSync("git rev-parse HEAD", { cwd: this.projectDir, encoding: "utf-8" }).trim()
+    } catch { gitSha = undefined }
     writeFileSync(
       join(checkpointDir, "checkpoint.json"),
       JSON.stringify({
@@ -129,6 +134,19 @@ export class PhaseOrchestrator {
         phase: String(this.state.currentPhase),
         phaseName: this.state.getPhaseName(),
         gateApprovals: this.state.gateApprovals,
+        gitSha,
+        updatedAt: new Date().toISOString(),
+      }, null, 2),
+      "utf-8"
+    )
+    writeFileSync(
+      join(checkpointDir, `checkpoint_phase${this.state.currentPhase}.json`),
+      JSON.stringify({
+        feature: featureName,
+        phase: String(this.state.currentPhase),
+        phaseName: this.state.getPhaseName(),
+        gateApprovals: this.state.gateApprovals,
+        gitSha,
         updatedAt: new Date().toISOString(),
       }, null, 2),
       "utf-8"

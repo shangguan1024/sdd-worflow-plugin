@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { SkillDispatcher } from "../skill/dispatcher.js";
 import { ConfigLoader } from "../config/loader.js";
+import { RollbackHandler } from "../rollback/handler.js";
 function formatResult(result) {
     if (result.details && result.details.length > 0) {
         return `${result.success ? "[OK]" : "[FAIL]"} ${result.message}\n${result.details.map(d => `  ${d}`).join("\n")}`;
@@ -271,6 +272,50 @@ export function toolDefinitions(director, state) {
                     message: `${filteredSkills.length} skills (${mode}) ready for Phase ${phase}`,
                 };
                 return `${formatResult(filteredResult)}\n\n${result.instruction}`;
+            },
+        }),
+        sdd_rollback: tool({
+            description: "Rollback SDD workflow to a previous phase. SDD state + related code rollback together (auto). Other code changes prompt user for decision. APPROVE requires human confirmation.",
+            args: {
+                target_phase: tool
+                    .schema
+                    .number()
+                    .int()
+                    .min(0)
+                    .max(6)
+                    .describe("Target phase to rollback to (0-6). Must be < current phase."),
+                code_scope: tool
+                    .schema
+                    .enum(["none", "related", "all"])
+                    .default("related")
+                    .describe("'none'=SDD state+docs only, 'related'=auto rollback task_plan code+prompt for others, 'all'=rollback everything"),
+                confirmed: tool
+                    .schema
+                    .boolean()
+                    .optional()
+                    .default(false)
+                    .describe("Set to true ONLY after human explicitly confirms the rollback"),
+            },
+            async execute(args) {
+                const targetPhase = args.target_phase;
+                const codeScope = args.code_scope ?? "related";
+                const confirmed = args.confirmed === true;
+                const rollbackHandler = new RollbackHandler(state, state.getProjectDir());
+                const result = rollbackHandler.executeRollback(targetPhase, codeScope, confirmed);
+                if (result.otherCodeChanges && result.otherCodeChanges.length > 0) {
+                    const promptDetails = [
+                        "",
+                        "🤔 USER DECISION REQUIRED for these unrelated code files:",
+                        ...result.otherCodeChanges.map(f => `  - ${f}`),
+                        "",
+                        "Options:",
+                        "  1. Rollback individually: git checkout <sha> -- <file>",
+                        "  2. Re-run: sdd_rollback target_phase=X code_scope='all' confirmed=true",
+                        "  3. Keep them (no action needed)",
+                    ];
+                    return formatResult({ success: result.success, message: result.message, details: [...result.details, ...promptDetails] });
+                }
+                return formatResult({ success: result.success, message: result.message, details: result.details });
             },
         }),
     };

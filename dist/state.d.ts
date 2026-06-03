@@ -54,6 +54,7 @@ export declare class SddState {
     recordEdit(filePath: string): void;
     recordTask(taskName: string): void;
     markRefreshed(): void;
+    rollbackTo(targetPhase: number): void;
     getProjectDir(): string;
     isInitialized(): boolean;
 }

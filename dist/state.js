@@ -157,6 +157,17 @@ export class SddState {
         });
         this.save();
     }
+    rollbackTo(targetPhase) {
+        this.currentPhase = targetPhase;
+        const approvalsToKeep = {};
+        for (const [phase, approved] of Object.entries(this.gateApprovals)) {
+            if (parseInt(phase) < targetPhase && approved) {
+                approvalsToKeep[parseInt(phase)] = true;
+            }
+        }
+        this.gateApprovals = approvalsToKeep;
+        this.resetContextMonitor();
+    }
     getProjectDir() {
         return this.projectDir;
     }

@@ -195,6 +195,18 @@ export class SddState {
     this.save()
   }
 
+  rollbackTo(targetPhase: number): void {
+    this.currentPhase = targetPhase
+    const approvalsToKeep: Record<number, boolean> = {}
+    for (const [phase, approved] of Object.entries(this.gateApprovals)) {
+      if (parseInt(phase) < targetPhase && approved) {
+        approvalsToKeep[parseInt(phase)] = true
+      }
+    }
+    this.gateApprovals = approvalsToKeep
+    this.resetContextMonitor()
+  }
+
   getProjectDir(): string {
     return this.projectDir
   }
