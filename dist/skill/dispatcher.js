@@ -91,18 +91,31 @@ Step 2: 调Primary skill
 ⚠️ 顺序不可颠倒：先看说明书，再拿工具干活
 ⚠️ 不要跳过Step 1直接调skill，否则不知道Phase的具体要求
 
-Step 3: 执行Phase任务
+Step 3: 询问用户是否需要调用附加技能
+  → 向用户列出当前Phase未调用的附加技能
+  → 询问用户: "以下附加技能可用于当前Phase，是否需要调用？"
+  → 用户确认后再调用，用户拒绝则跳过
+
+Step 4: 执行Phase任务
   → 按phases-reference.md的Phase ${phase} section指导执行
 
-Step 4: Gate检查
+Step 5: Gate检查
   → sdd_gate phase=${phase + 1} action=check
   → sdd_gate phase=${phase + 1} action=approve (需用户确认)
 `;
         if (additionalSkills.length > 0) {
             instruction += `
-📋 Available additional skills (可选, 自行判断调用时机):
+📋 Additional skills for Phase ${phase} (${phaseName}):
 
-${additionalSkills.map(s => `- ${s.name}\n  功能: ${s.description}\n  建议: 需要时调用, 无固定时机`).join("\n\n")}
+${additionalSkills.map(s => `- ${s.name}\n  功能: ${s.description}`).join("\n\n")}
+
+⚠️ 主技能执行完成后，必须向用户询问是否需要调用以上附加技能
+⚠️ 不要自行决定调用附加技能，需用户明确确认
+`;
+        }
+        else {
+            instruction += `
+📋 当前Phase无附加技能配置
 `;
         }
         return instruction;
