@@ -10,8 +10,9 @@ export class ProjectInitializer {
         this.projectDir = projectDir;
     }
     isInitialized(path) {
-        return existsSync(join(path, "CONSTITUTION"))
-            || existsSync(join(path, ".sdd"))
+        return existsSync(join(path, "CONSTITUTION", "core.md"))
+            || existsSync(join(path, ".sdd", "project.json"))
+            || existsSync(join(path, ".sdd", "workflow_config.json"))
             || existsSync(join(path, "PROJECT_STATE.md"));
     }
     initializeAll(path, template) {

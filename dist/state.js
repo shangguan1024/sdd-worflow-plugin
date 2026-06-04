@@ -172,8 +172,8 @@ export class SddState {
         return this.projectDir;
     }
     isInitialized() {
-        return existsSync(join(this.projectDir, ".sdd", "state.json"))
-            || existsSync(join(this.projectDir, "CONSTITUTION"));
+        return existsSync(join(this.projectDir, ".sdd", "project.json"))
+            || existsSync(join(this.projectDir, "CONSTITUTION", "core.md"));
     }
 }
 function generateSessionId() {
