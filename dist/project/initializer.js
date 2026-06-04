@@ -50,7 +50,7 @@ export class ProjectInitializer {
         }, null, 2), "utf-8");
         writeFileSync(join(path, ".sdd", "workflow_config.json"), JSON.stringify({
             version: "2.5",
-            comment: "This file allows customizing additional_skills per phase. Primary skills are NOT overridden.",
+            comment: "skills field completely replaces default_primary_skills for that phase (not appended). additional_skills are appended after primary skills.",
             default_primary_skills: {
                 0: "comprehensive-research-agent",
                 1: "brainstorming",
@@ -61,13 +61,13 @@ export class ProjectInitializer {
                 6: "memory-systems",
             },
             phases: [
-                { id: 0, additional_skills: [] },
-                { id: 1, additional_skills: [] },
-                { id: 2, additional_skills: [] },
-                { id: 3, additional_skills: ["code-review-quality"] },
-                { id: 4, additional_skills: [] },
-                { id: 5, additional_skills: ["receiving-code-review"] },
-                { id: 6, additional_skills: [] },
+                { id: 0, skills: null, additional_skills: [] },
+                { id: 1, skills: null, additional_skills: [] },
+                { id: 2, skills: null, additional_skills: [] },
+                { id: 3, skills: null, additional_skills: ["code-review-quality"] },
+                { id: 4, skills: null, additional_skills: [] },
+                { id: 5, skills: null, additional_skills: ["receiving-code-review"] },
+                { id: 6, skills: null, additional_skills: [] },
             ],
         }, null, 2), "utf-8");
     }
