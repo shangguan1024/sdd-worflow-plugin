@@ -12,6 +12,7 @@ export declare class Director {
     private phaseOrchestrator;
     private configLoader;
     private rollbackHandler;
+    private skillDispatcher;
     constructor(projectDir: string, state: SddState);
     executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult>;
     private initialize;

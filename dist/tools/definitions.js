@@ -41,7 +41,9 @@ export function toolDefinitions(director, state) {
             },
             async execute(args) {
                 const result = await director.executeCommand("start", args);
-                return formatResult(result);
+                const skillResult = skillDispatcher.dispatchForPhase(0);
+                const skillInstruction = skillResult.success ? `\n\n${skillResult.instruction}` : "";
+                return `${formatResult(result)}${skillInstruction}`;
             },
         }),
         sdd_resume: tool({
@@ -55,7 +57,11 @@ export function toolDefinitions(director, state) {
             },
             async execute(args) {
                 const result = await director.executeCommand("resume", args);
-                return formatResult(result);
+                if (!result.success)
+                    return formatResult(result);
+                const skillResult = skillDispatcher.dispatchForCurrentPhase();
+                const skillInstruction = skillResult.success ? `\n\n${skillResult.instruction}` : "";
+                return `${formatResult(result)}${skillInstruction}`;
             },
         }),
         sdd_status: tool({
@@ -135,7 +141,11 @@ export function toolDefinitions(director, state) {
                         });
                     }
                     const result = await director.executeCommand(`gate ${phase} approve`, { confirmed: true });
-                    return formatResult(result);
+                    if (!result.success)
+                        return formatResult(result);
+                    const skillResult = skillDispatcher.dispatchForPhase(phase);
+                    const skillInstruction = skillResult.success ? `\n\n${skillResult.instruction}` : "";
+                    return `${formatResult(result)}${skillInstruction}`;
                 }
                 if (action === "block") {
                     return formatResult({

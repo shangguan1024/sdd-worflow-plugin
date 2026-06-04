@@ -4,6 +4,7 @@ import { GateChecker } from "./gate/checker.js";
 import { PhaseOrchestrator } from "./phase/orchestrator.js";
 import { ConfigLoader } from "./config/loader.js";
 import { RollbackHandler } from "./rollback/handler.js";
+import { SkillDispatcher } from "./skill/dispatcher.js";
 import { join } from "path";
 import { existsSync, readFileSync, readdirSync } from "fs";
 export class Director {
@@ -14,6 +15,7 @@ export class Director {
     phaseOrchestrator;
     configLoader;
     rollbackHandler;
+    skillDispatcher;
     constructor(projectDir, state) {
         this.projectDir = projectDir;
         this.state = state;
@@ -22,6 +24,7 @@ export class Director {
         this.gateChecker = new GateChecker(state, this.configLoader, projectDir);
         this.phaseOrchestrator = new PhaseOrchestrator(state, this.configLoader, projectDir);
         this.rollbackHandler = new RollbackHandler(state, projectDir);
+        this.skillDispatcher = new SkillDispatcher(this.configLoader, state);
     }
     async executeCommand(cmd, args) {
         const parts = cmd.split(/\s+/);
@@ -70,7 +73,7 @@ export class Director {
                 "  - .sdd/project.json: Project metadata",
                 "  - .sdd/workflow_config.json: Customize additional_skills per phase",
                 "",
-                "Default primary skills (NOT overridden by config):",
+                "Default primary skills (overridden by workflow_config.json skills field):",
                 "  Phase 0: comprehensive-research-agent",
                 "  Phase 1: brainstorming",
                 "  Phase 2: writing-plans",
@@ -79,8 +82,9 @@ export class Director {
                 "  Phase 5: requesting-code-review",
                 "  Phase 6: memory-systems",
                 "",
-                "To add custom skills, edit .sdd/workflow_config.json:",
-                '  { "phases": [{ "id": 3, "additional_skills": ["test-driven-development"] }] }',
+                "To customize skills, edit .sdd/workflow_config.json:",
+                "  Override primary skills: { \"phases\": [{ \"id\": 1, \"skills\": [\"tdd\", \"brainstorming\"] }] }",
+                "  Append additional skills: { \"phases\": [{ \"id\": 3, \"additional_skills\": [\"test-driven-development\"] }] }",
                 "",
                 "Use sdd_dispatch_skill to see all skills for current phase.",
             ],
@@ -91,13 +95,18 @@ export class Director {
             return { success: false, message: "Feature name required: sdd start <feature>" };
         }
         const result = this.phaseOrchestrator.startFeature(featureName);
+        if (!result.success) {
+            return {
+                success: false,
+                message: result.message,
+            };
+        }
         return {
-            success: result.success,
+            success: true,
             message: result.message,
             details: [
                 "Phase 0 (Research & Understanding) is mandatory before design.",
                 "Use sdd_gate phase=1 action=check to check gate requirements.",
-                "Use sdd_dispatch_skill to invoke 'comprehensive-research-agent' skill.",
             ],
         };
     }
@@ -269,20 +278,28 @@ export class Director {
         };
     }
     dispatchSkill(skillName, args) {
-        const skill = skillName ?? this.configLoader.getSkill(this.state.currentPhase);
-        if (!skill) {
+        if (skillName) {
+            const result = this.skillDispatcher.dispatchSkill(skillName);
+            if (!result.success) {
+                return { success: false, message: result.message };
+            }
             return {
-                success: false,
-                message: `No skill configured for Phase ${this.state.currentPhase}`,
+                success: true,
+                message: result.message,
+                details: [
+                    result.instruction,
+                ],
             };
+        }
+        const result = this.skillDispatcher.dispatchForCurrentPhase();
+        if (!result.success) {
+            return { success: false, message: result.message };
         }
         return {
             success: true,
-            message: `Skill '${skill}' ready to dispatch`,
+            message: result.message,
             details: [
-                `Invoke skill: skill("${skill}")`,
-                `Or in opencode: "Use ${skill} skill"`,
-                `Args: ${JSON.stringify(args ?? {})}`,
+                result.instruction,
             ],
         };
     }

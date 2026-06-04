@@ -4,6 +4,7 @@ import { GateChecker } from "./gate/checker.js"
 import { PhaseOrchestrator } from "./phase/orchestrator.js"
 import { ConfigLoader } from "./config/loader.js"
 import { RollbackHandler } from "./rollback/handler.js"
+import { SkillDispatcher } from "./skill/dispatcher.js"
 import { join } from "path"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs"
 
@@ -21,6 +22,7 @@ export class Director {
   private phaseOrchestrator: PhaseOrchestrator
   private configLoader: ConfigLoader
   private rollbackHandler: RollbackHandler
+  private skillDispatcher: SkillDispatcher
 
   constructor(projectDir: string, state: SddState) {
     this.projectDir = projectDir
@@ -30,6 +32,7 @@ export class Director {
     this.gateChecker = new GateChecker(state, this.configLoader, projectDir)
     this.phaseOrchestrator = new PhaseOrchestrator(state, this.configLoader, projectDir)
     this.rollbackHandler = new RollbackHandler(state, projectDir)
+    this.skillDispatcher = new SkillDispatcher(this.configLoader, state)
   }
 
   async executeCommand(cmd: string, args: Record<string, unknown>): Promise<CommandResult> {
@@ -113,13 +116,19 @@ export class Director {
 
     const result = this.phaseOrchestrator.startFeature(featureName)
 
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.message,
+      }
+    }
+
     return {
-      success: result.success,
+      success: true,
       message: result.message,
       details: [
         "Phase 0 (Research & Understanding) is mandatory before design.",
         "Use sdd_gate phase=1 action=check to check gate requirements.",
-        "Use sdd_dispatch_skill to invoke 'comprehensive-research-agent' skill.",
       ],
     }
   }
@@ -311,21 +320,30 @@ export class Director {
   }
 
   private dispatchSkill(skillName?: string, args?: Record<string, unknown>): CommandResult {
-    const skill = skillName ?? this.configLoader.getSkill(this.state.currentPhase)
-    if (!skill) {
-      return {
-        success: false,
-        message: `No skill configured for Phase ${this.state.currentPhase}`,
+    if (skillName) {
+      const result = this.skillDispatcher.dispatchSkill(skillName)
+      if (!result.success) {
+        return { success: false, message: result.message }
       }
+      return {
+        success: true,
+        message: result.message,
+        details: [
+          result.instruction,
+        ],
+      }
+    }
+
+    const result = this.skillDispatcher.dispatchForCurrentPhase()
+    if (!result.success) {
+      return { success: false, message: result.message }
     }
 
     return {
       success: true,
-      message: `Skill '${skill}' ready to dispatch`,
+      message: result.message,
       details: [
-        `Invoke skill: skill("${skill}")`,
-        `Or in opencode: "Use ${skill} skill"`,
-        `Args: ${JSON.stringify(args ?? {})}`,
+        result.instruction,
       ],
     }
   }
