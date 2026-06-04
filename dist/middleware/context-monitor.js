@@ -41,7 +41,7 @@ export const contextMonitorMiddleware = {
         if (existsSync(findingsFile)) {
             lines.push("\n## Key Requirements & Constraints");
             const content = readFileSync(findingsFile, "utf-8");
-            const phase0Section = extractSection(content, ["## Phase 0: Research", "## Research"], 500);
+            const phase0Section = extractSection(content, ["## Phase 0: Requirement Clarification", "## Requirement Clarification"], 500);
             if (phase0Section) {
                 lines.push(phase0Section);
             }

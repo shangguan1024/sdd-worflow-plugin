@@ -61,7 +61,7 @@ export const contextMonitorMiddleware = {
       const content = readFileSync(findingsFile, "utf-8")
       const phase0Section = extractSection(
         content,
-        ["## Phase 0: Research", "## Research"],
+        ["## Phase 0: Requirement Clarification", "## Requirement Clarification"],
         500
       )
       if (phase0Section) {

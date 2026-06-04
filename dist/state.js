@@ -11,9 +11,9 @@ export var Phase;
     Phase[Phase["PERSISTENCE"] = 6] = "PERSISTENCE";
     Phase[Phase["COMPLETED"] = 7] = "COMPLETED";
 })(Phase || (Phase = {}));
-export const RESEARCH = Phase.INIT; // Phase 0 alias
+export const REQUIREMENT_CLARIFICATION = Phase.INIT; // Phase 0 alias
 export const PHASE_NAMES = {
-    [Phase.INIT]: "Research & Understanding",
+    [Phase.INIT]: "Research & Requirement Clarification",
     [Phase.REQUIREMENTS]: "Requirements & Design",
     [Phase.PLANNING]: "Implementation Planning",
     [Phase.DEVELOPMENT]: "Module Development",

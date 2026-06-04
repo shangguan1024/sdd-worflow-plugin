@@ -5,19 +5,19 @@ const DEFAULT_CONFIG = {
     phases: [
         {
             id: 0,
-            name: "Research & Understanding",
+            name: "Research & Requirement Clarification",
             blocked_tools: ["edit", "bash"],
             allowed_tools: ["read", "glob", "grep", "write"],
             skills: ["comprehensive-research-agent"],
             additional_skills: [],
             allowed_tools_paths: ["docs/features/{feature}/"],
             required_files: ["findings.md"],
-            required_sections: ["## Phase 0: Research"],
+            required_sections: ["## Phase 0: Requirement Clarification"],
             gate_requirements: [
-                "5+ specific files analyzed",
-                "2+ external citations",
-                "2+ constraints",
-                "2+ alternatives",
+                "Feature overview described",
+                "Requirement specifications clarified",
+                "Performance requirements identified",
+                "Core modules designed",
             ],
         },
         {

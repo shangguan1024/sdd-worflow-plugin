@@ -15,7 +15,7 @@ export interface SkillInvocation {
 }
 
 const SKILL_DESCRIPTIONS: Record<string, string> = {
-  "comprehensive-research-agent": "Deep research with error recovery, cross-validation, and source tracking",
+  "comprehensive-research-agent": "Research and requirement clarification — ask the user for feature overview, requirement specs, performance requirements, and core module design",
   "brainstorming": "Design exploration before implementation, collaborative requirement refinement",
   "writing-plans": "Implementation planning with task decomposition",
   "subagent-driven-development": "Parallel module development with independent tasks",

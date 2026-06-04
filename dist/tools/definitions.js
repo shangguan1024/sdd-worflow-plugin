@@ -35,7 +35,7 @@ export function toolDefinitions(director, state) {
             },
         }),
         sdd_start: tool({
-            description: "Start a new feature development workflow (Phase 0: Research & Understanding)",
+            description: "Start a new feature development workflow (Phase 0: Research & Requirement Clarification)",
             args: {
                 feature: tool.schema.string().describe("Feature name"),
             },

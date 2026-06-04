@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "fs"
 import { join } from "path"
 
 const PHASE_SUMMARY_MAP: Record<number, { file: string; marker: string }> = {
-  0: { file: "findings.md", marker: "## Phase 0: Research" },
+  0: { file: "findings.md", marker: "## Phase 0: Requirement Clarification" },
   1: { file: "findings.md", marker: "## Phase 1: Design Summary" },
   2: { file: "findings.md", marker: "## Phase 2: Plan Summary" },
   3: { file: "findings.md", marker: "## Phase 3: Implementation Summary" },
@@ -47,7 +47,7 @@ export const phaseCompressionMiddleware = {
     const content = readFileSync(targetFile, "utf-8")
     if (!content.toLowerCase().includes(spec.marker.toLowerCase())) {
       const altMarkers: Record<string, string[]> = {
-        "## Phase 0: Research": ["## Phase 0", "## Research"],
+        "## Phase 0: Requirement Clarification": ["## Phase 0", "## Requirement Clarification"],
         "## Phase 1: Design Summary": ["## Phase 1", "## Design"],
         "## Phase 2: Plan Summary": ["## Phase 2", "## Plan"],
         "## Phase 3: Implementation Summary": [

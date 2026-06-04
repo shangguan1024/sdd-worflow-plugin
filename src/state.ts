@@ -12,10 +12,10 @@ export enum Phase {
   COMPLETED = 7,
 }
 
-export const RESEARCH = Phase.INIT  // Phase 0 alias
+export const REQUIREMENT_CLARIFICATION = Phase.INIT  // Phase 0 alias
 
 export const PHASE_NAMES: Record<number, string> = {
-  [Phase.INIT]: "Research & Understanding",
+  [Phase.INIT]: "Research & Requirement Clarification",
   [Phase.REQUIREMENTS]: "Requirements & Design",
   [Phase.PLANNING]: "Implementation Planning",
   [Phase.DEVELOPMENT]: "Module Development",

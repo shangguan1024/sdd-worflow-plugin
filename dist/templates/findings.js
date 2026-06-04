@@ -19,9 +19,17 @@ ${featureName}
 
 ---
 
-## Phase 0: Research
+## Phase 0: Requirement Clarification
 
 **Status**: ⏳ Pending
+
+### Feature Overview
+
+### Requirement Specifications
+
+### Performance Requirements
+
+### Core Modules
 
 ---
 

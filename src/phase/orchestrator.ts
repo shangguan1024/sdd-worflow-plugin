@@ -78,7 +78,7 @@ export class PhaseOrchestrator {
 
     return {
       success: true,
-      message: `Feature '${featureName}' started at Phase 0 (Research & Understanding)`,
+      message: `Feature '${featureName}' started at Phase 0 (Research & Requirement Clarification)`,
       from_phase: -1,
       to_phase: Phase.INIT,
     }

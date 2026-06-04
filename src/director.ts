@@ -92,7 +92,7 @@ export class Director {
         "  - .sdd/workflow_config.json: Customize skills and additional_skills per phase",
         "",
         "Default primary skills (replace by setting skills field in workflow_config.json):",
-        "  Phase 0: comprehensive-research-agent",
+        "  Phase 0: comprehensive-research-agent (Research & Requirement Clarification)",
         "  Phase 1: brainstorming",
         "  Phase 2: writing-plans",
         "  Phase 3: subagent-driven-development",
@@ -127,7 +127,9 @@ export class Director {
       success: true,
       message: result.message,
       details: [
-        "Phase 0 (Research & Understanding) is mandatory before design.",
+        "Phase 0 (Research & Requirement Clarification) is mandatory before design.",
+        "Phase 0 asks the user for detailed requirement descriptions: feature overview, requirement specs, performance requirements, core modules.",
+        "If the primary skill covers requirement clarification, it will handle the interaction with the user.",
         "Use sdd_gate phase=1 action=check to check gate requirements.",
       ],
     }

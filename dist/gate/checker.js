@@ -51,10 +51,11 @@ export class GateChecker {
     checkPhase0Gate(featureDir, details, missing) {
         const findings = this.requireFile("findings.md", join(featureDir, "findings.md"), details, missing);
         if (findings) {
-            this.requireSection("Phase 0 research section", findings, ["## Phase 0: Research", "## Research"], details, missing);
-            this.requireSection("Codebase analysis", findings, ["### Codebase Analysis", "Codebase Analysis"], details, missing);
-            this.requireSection("Constraints", findings, ["### Constraints", "Constraints"], details, missing);
-            this.requireSection("Alternatives", findings, ["### Alternatives", "Alternatives"], details, missing);
+            this.requireSection("Phase 0 requirement clarification section", findings, ["## Phase 0: Requirement Clarification", "## Requirement Clarification"], details, missing);
+            this.requireSection("Feature overview", findings, ["### Feature Overview", "Feature Overview", "功能简介"], details, missing);
+            this.requireSection("Requirement specifications", findings, ["### Requirement Specifications", "Requirement Specifications", "需求规格"], details, missing);
+            this.requireSection("Performance requirements", findings, ["### Performance Requirements", "Performance Requirements", "性能要求"], details, missing);
+            this.requireSection("Core modules", findings, ["### Core Modules", "Core Modules", "核心模块"], details, missing);
         }
     }
     checkPhase1Gate(featureDir, details, missing) {

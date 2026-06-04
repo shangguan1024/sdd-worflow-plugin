@@ -8,7 +8,7 @@ export declare enum Phase {
     PERSISTENCE = 6,// Phase 6
     COMPLETED = 7
 }
-export declare const RESEARCH = Phase.INIT;
+export declare const REQUIREMENT_CLARIFICATION = Phase.INIT;
 export declare const PHASE_NAMES: Record<number, string>;
 export declare const PHASE_SKILLS: Record<number, string>;
 export interface SddStateData {
