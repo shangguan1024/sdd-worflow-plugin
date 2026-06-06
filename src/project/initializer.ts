@@ -28,7 +28,7 @@ isInitialized(path: string): boolean {
 
   createDirectoryStructure(path: string): void {
     const dirs = [
-      ".sdd", "CONSTITUTION", ".nexus-map",
+      ".sdd", "CONSTITUTION",
       "docs/knowledge", "docs/modules", "docs/features", "docs/collaboration",
     ]
     for (const d of dirs) {

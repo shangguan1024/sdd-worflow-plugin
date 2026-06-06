@@ -23,7 +23,7 @@ export class ProjectInitializer {
     }
     createDirectoryStructure(path) {
         const dirs = [
-            ".sdd", "CONSTITUTION", ".nexus-map",
+            ".sdd", "CONSTITUTION",
             "docs/knowledge", "docs/modules", "docs/features", "docs/collaboration",
         ];
         for (const d of dirs) {
